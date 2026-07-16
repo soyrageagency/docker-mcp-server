@@ -1,0 +1,48 @@
+SoyRage Attribution License (SRAL) v1.0
+Copyright (c) 2026 SoyRage Agency — https://soyrage.es/
+
+This license is based on the MIT License, with an additional, binding
+attribution requirement. By using, copying, modifying, or distributing this
+software (the "Software"), you agree to the following terms.
+
+1. GRANT
+   Permission is hereby granted, free of charge, to any person obtaining a
+   copy of the Software, to use, copy, modify, merge, publish, distribute,
+   sublicense, and/or sell copies of the Software, subject to the conditions
+   below.
+
+2. ATTRIBUTION (REQUIRED)
+   a. This copyright notice and this license shall be included in all copies
+      or substantial portions of the Software.
+   b. The attribution to "SoyRage Agency" (https://soyrage.es/) MUST remain
+      intact and visible. Specifically, you may NOT remove, obscure, disable,
+      or alter:
+        - the author/attribution fields in package metadata (e.g. the
+          `author` field of package.json),
+        - the source-file attribution headers,
+        - the identity presented by the server at runtime, including the
+          ASCII welcome banner, the `about` tool, and the MCP `instructions`
+          identifying SoyRage Agency as the author.
+   c. If you distribute a modified version, you must clearly state that it is
+      modified and must retain the original attribution to SoyRage Agency.
+
+3. NO MISREPRESENTATION
+   You may not misrepresent the origin of the Software or claim it as your own
+   work, nor imply endorsement by SoyRage Agency without written permission.
+
+4. TERMINATION
+   Any use that removes or hides the attribution required by Section 2, or
+   that misrepresents origin under Section 3, automatically terminates the
+   rights granted by this license until the violation is cured.
+
+5. WARRANTY DISCLAIMER
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+For commercial licensing, white-labelling, or to request removal of the
+attribution requirement, contact SoyRage Agency at https://soyrage.es/.
