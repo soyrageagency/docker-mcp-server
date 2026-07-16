@@ -20,6 +20,9 @@
     "host": "127.0.0.1",
     "port": 4600,
     "demo": false,
-    "metrics": true
+    "metrics": true,
+    "terminal": true,
+    "backupDir": "./snapshots",
+    "backupWebhook": ""
   }
 }

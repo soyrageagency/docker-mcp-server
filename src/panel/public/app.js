@@ -60,6 +60,9 @@ function switchTab(tab) {
   $$(".tabpane").forEach((p) => p.classList.toggle("hidden", p.id !== `tab-${tab}`));
   if (tab === "files") initFiles();
   if (tab === "alerts") loadAlerts();
+  if (tab === "terminal") $("#term-input").focus();
+  if (tab === "backups") initBackups();
+  if (tab === "system") loadSystem();
 }
 
 /* --------------------------------------------------------------- overview */
@@ -130,7 +133,9 @@ function renderContainers(list) {
           </td>
           <td>
             <div class="actions">
+              <button class="act" title="Details" data-details="${escapeHtml(c.name)}">ⓘ</button>
               <button class="act" title="Files" data-files="${escapeHtml(c.name)}">🗀</button>
+              <button class="act" title="Snapshot" data-snap="${escapeHtml(c.name)}">📸</button>
               <button class="act" title="Start" data-act="start" data-name="${escapeHtml(c.name)}" ${disabled}>▶</button>
               <button class="act" title="Stop" data-act="stop" data-name="${escapeHtml(c.name)}" ${disabled}>■</button>
               <button class="act" title="Restart" data-act="restart" data-name="${escapeHtml(c.name)}" ${disabled}>⟳</button>
@@ -144,6 +149,8 @@ function renderContainers(list) {
   $("#containers").querySelectorAll("[data-logs]").forEach((c) => c.addEventListener("click", () => showLogs(c.dataset.logs)));
   $("#containers").querySelectorAll("[data-files]").forEach((b) => b.addEventListener("click", () => openFiles(b.dataset.files)));
   $("#containers").querySelectorAll("[data-auto]").forEach((b) => b.addEventListener("click", () => toggleAuto(b.dataset.auto)));
+  $("#containers").querySelectorAll("[data-details]").forEach((b) => b.addEventListener("click", () => showDetails(b.dataset.details)));
+  $("#containers").querySelectorAll("[data-snap]").forEach((b) => b.addEventListener("click", () => quickSnapshot(b.dataset.snap)));
 }
 
 function renderImages(list) {
@@ -290,10 +297,248 @@ function openDrawer(title, body) {
   $("#drawer-body").textContent = body;
   $("#drawer").classList.remove("hidden");
   $("#scrim").classList.remove("hidden");
+  document.body.classList.add("locked"); // lock background scroll (bugfix)
+  $("#drawer-body").scrollTop = 0;
 }
 function closeDrawer() {
   $("#drawer").classList.add("hidden");
   $("#scrim").classList.add("hidden");
+  document.body.classList.remove("locked");
+}
+
+/* --------------------------------------------------------------- details */
+
+async function showDetails(name) {
+  openDrawer(`Details · ${name}`, "Loading…");
+  try {
+    const d = await api(`/api/inspect?name=${encodeURIComponent(name)}`);
+    const line = (k, v) => `${k.padEnd(14)}${v}`;
+    const body = [
+      line("Name", d.name),
+      line("Image", d.image),
+      line("ID", d.id),
+      line("Created", d.created),
+      line("State", `${d.state} (health: ${d.health})`),
+      line("Restart", d.restartPolicy),
+      line("Command", d.command || "—"),
+      line("Ports", d.ports.join(", ")),
+      "",
+      "Networks:",
+      ...d.networks.map((n) => "  • " + n),
+      "",
+      "Mounts:",
+      ...(d.mounts.length ? d.mounts.map((m) => "  • " + m) : ["  —"]),
+      "",
+      "Environment:",
+      ...(d.env.length ? d.env.map((e) => "  " + e) : ["  —"]),
+    ].join("\n");
+    $("#drawer-body").textContent = body;
+  } catch (err) {
+    $("#drawer-body").textContent = `Error: ${err.message}`;
+  }
+}
+
+/* --------------------------------------------------------------- terminal */
+
+const CATALOG = [
+  { t: "docker ps -a", d: "List all containers (running + stopped)" },
+  { t: "docker ps", d: "List running containers" },
+  { t: "docker images", d: "List local images with sizes" },
+  { t: "docker stats", d: "Live CPU / memory usage" },
+  { t: "docker logs <c>", d: "Tail a container's logs" },
+  { t: "docker logs -f <c>", d: "Follow logs live" },
+  { t: "docker inspect <c>", d: "Full low-level config" },
+  { t: "docker restart <c>", d: "Restart a container" },
+  { t: "docker stop <c>", d: "Gracefully stop a container" },
+  { t: "docker start <c>", d: "Start a stopped container" },
+  { t: "docker exec <c> sh -lc 'ls -la /app'", d: "Run a command inside a container" },
+  { t: "docker top <c>", d: "Processes running in a container" },
+  { t: "docker network ls", d: "List networks" },
+  { t: "docker volume ls", d: "List volumes" },
+  { t: "docker system df", d: "Disk usage summary" },
+  { t: "docker info", d: "Daemon-wide information" },
+  { t: "docker version", d: "Client & server versions" },
+  { t: "docker compose ps", d: "List a Compose stack's services" },
+  { t: "docker compose up -d", d: "Deploy/refresh a stack in the background" },
+  { t: "docker compose logs -f", d: "Follow a stack's logs" },
+  { t: "docker pull <image>", d: "Pull the latest image" },
+];
+
+const term = { sugg: [], sel: 0, open: false };
+
+function buildSuggestions(input) {
+  const names = state.containers.map((c) => c.name);
+  const q = input.trim().toLowerCase();
+  const expanded = [];
+  for (const e of CATALOG) {
+    if (e.t.includes("<c>")) {
+      const pool = names.length ? names : ["<container>"];
+      for (const n of pool) expanded.push({ text: e.t.replace("<c>", n), desc: e.d });
+    } else {
+      expanded.push({ text: e.t, desc: e.d });
+    }
+  }
+  if (!q) return expanded.slice(0, 8);
+  const scored = expanded
+    .map((s) => ({ ...s, score: s.text.toLowerCase().startsWith(q) ? 2 : s.text.toLowerCase().includes(q) ? 1 : 0 }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, 8);
+}
+
+function renderSuggestions() {
+  const box = $("#term-sugg");
+  if (!term.open || term.sugg.length === 0) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = term.sugg
+    .map((s, i) => `<div class="sugg ${i === term.sel ? "sel" : ""}" data-i="${i}">
+      <span class="sugg-cmd mono">${escapeHtml(s.text)}</span><span class="sugg-desc">${escapeHtml(s.desc)}</span></div>`)
+    .join("");
+  box.querySelectorAll(".sugg").forEach((el) => el.addEventListener("mousedown", (ev) => { ev.preventDefault(); acceptSugg(Number(el.dataset.i), true); }));
+}
+
+function acceptSugg(i, run) {
+  const s = term.sugg[i];
+  if (!s) return;
+  $("#term-input").value = s.text;
+  term.open = false; renderSuggestions();
+  if (run) runTerm();
+  $("#term-input").focus();
+}
+
+function onTermInput(e) {
+  term.sugg = buildSuggestions(e.target.value);
+  term.sel = 0;
+  term.open = term.sugg.length > 0;
+  renderSuggestions();
+}
+
+function onTermKey(e) {
+  const n = term.sugg.length;
+  if (term.open && n) {
+    if (e.key === "ArrowDown") { term.sel = (term.sel + 1) % n; renderSuggestions(); e.preventDefault(); return; }
+    if (e.key === "ArrowUp") { term.sel = (term.sel - 1 + n) % n; renderSuggestions(); e.preventDefault(); return; }
+    if (e.key === "Tab") { e.preventDefault(); acceptSugg(term.sel, false); return; }
+    if (e.key === "Enter") { e.preventDefault(); acceptSugg(term.sel, true); return; }
+    if (e.key === "Escape") { term.open = false; renderSuggestions(); return; }
+  }
+  if (e.key === "Enter") { e.preventDefault(); runTerm(); }
+}
+
+async function runTerm() {
+  const input = $("#term-input");
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  const out = $("#term-out");
+  out.insertAdjacentHTML("beforeend", `<div class="to-cmd"><span class="prompt">❯</span> ${escapeHtml(cmd)}</div>`);
+  input.value = ""; term.open = false; renderSuggestions();
+  try {
+    const r = await api("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command: cmd }) });
+    const cls = r.code === 0 ? "to-out" : "to-out err";
+    out.insertAdjacentHTML("beforeend", `<div class="${cls}">${escapeHtml(r.output)}</div>`);
+  } catch (err) {
+    out.insertAdjacentHTML("beforeend", `<div class="to-out err">${escapeHtml(err.message)}</div>`);
+  }
+  out.scrollTop = out.scrollHeight;
+}
+
+function seedTerminal() {
+  $("#term-out").innerHTML =
+    `<div class="to-out muted">Docker terminal — type <b>docker …</b>, press <b>Tab</b> to complete a suggestion, <b>↑/↓</b> to pick, <b>Enter</b> to run.
+Read-only commands always work; write commands respect read-only mode. Try: <b>docker ps -a</b></div>`;
+}
+
+/* --------------------------------------------------------------- backups */
+
+function initBackups() {
+  const sel = $("#bk-container");
+  sel.innerHTML = state.containers.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join("");
+  $("#bk-dir").textContent = `→ ${state.meta.backupDir || "./snapshots"}`;
+  $("#sc-hint").innerHTML =
+    "Snapshots are written to the directory above. Set a <b>notify email</b> and a webhook (<code>DOCKER_MCP_BACKUP_WEBHOOK</code>) to forward backups to email, Google Drive or S3 via Zapier / Make / n8n.";
+  loadSchedule();
+  loadSnapshots();
+}
+
+async function createSnapshotUI() {
+  const container = $("#bk-container").value;
+  const type = $("#bk-type").value;
+  if (!container) return;
+  $("#bk-create").disabled = true;
+  try {
+    await api("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ container, type }) });
+    await loadSnapshots();
+  } catch (err) {
+    alert(`Snapshot failed: ${err.message}`);
+  } finally {
+    $("#bk-create").disabled = false;
+  }
+}
+
+async function quickSnapshot(name) {
+  try {
+    await api("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ container: name, type: "commit" }) });
+    switchTab("backups");
+  } catch (err) {
+    alert(`Snapshot failed: ${err.message}`);
+  }
+}
+
+async function loadSnapshots() {
+  try {
+    const { snapshots } = await api("/api/backups");
+    $("#bk-list").innerHTML = snapshots.length
+      ? snapshots.map((s) => `<tr>
+          <td class="mono">${escapeHtml(new Date(s.createdAt).toLocaleString())}</td>
+          <td class="name">${escapeHtml(s.container)}</td>
+          <td><span class="tagpill">${escapeHtml(s.type)}</span></td>
+          <td class="mono">${escapeHtml(s.ref)}</td>
+          <td class="muted">${escapeHtml(s.destination)}</td>
+          <td class="right mono">${bytes(s.sizeBytes)}</td></tr>`).join("")
+      : '<tr><td colspan="6" class="muted">No snapshots yet.</td></tr>';
+  } catch (err) {
+    $("#bk-list").innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function loadSchedule() {
+  try {
+    const s = await api("/api/schedule");
+    $("#sc-enabled").checked = !!s.enabled;
+    $("#sc-time").value = s.time || "03:00";
+    $("#sc-type").value = s.type || "commit";
+    $("#sc-containers").value = (s.containers || ["all"]).join(",");
+    $("#sc-email").value = s.email || "";
+  } catch { /* best effort */ }
+}
+
+async function saveSchedule() {
+  const body = {
+    enabled: $("#sc-enabled").checked,
+    time: $("#sc-time").value,
+    type: $("#sc-type").value,
+    containers: $("#sc-containers").value.split(",").map((x) => x.trim()).filter(Boolean),
+    email: $("#sc-email").value,
+  };
+  try {
+    await api("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    $("#sc-save").textContent = "Saved ✓";
+    setTimeout(() => ($("#sc-save").textContent = "Save"), 1500);
+  } catch (err) {
+    alert(`Could not save schedule: ${err.message}`);
+  }
+}
+
+/* ---------------------------------------------------------------- system */
+
+async function loadSystem() {
+  try {
+    const [{ networks }, { volumes }] = await Promise.all([api("/api/networks"), api("/api/volumes")]);
+    $("#net-list").innerHTML = networks.map((n) => `<tr><td class="name">${escapeHtml(n.name)}</td><td class="mono">${escapeHtml(n.id)}</td><td>${escapeHtml(n.driver)}</td><td class="muted">${escapeHtml(n.scope)}</td></tr>`).join("");
+    $("#vol-list").innerHTML = volumes.map((v) => `<tr><td class="name">${escapeHtml(v.name)}</td><td>${escapeHtml(v.driver)}</td><td class="mono muted">${escapeHtml(v.mountpoint)}</td></tr>`).join("");
+  } catch (err) {
+    $("#net-list").innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(err.message)}</td></tr>`;
+  }
 }
 
 /* ---------------------------------------------------------------- refresh */
@@ -326,8 +571,20 @@ async function init() {
   } catch { /* best effort */ }
 
   $$(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+  if (state.meta.terminal === false) $('.tab[data-tab="terminal"]').classList.add("hidden");
   $("#refresh").addEventListener("click", () => refresh().catch(showError));
   $("#alerts-refresh").addEventListener("click", loadAlerts);
+
+  // Terminal
+  seedTerminal();
+  $("#term-input").addEventListener("input", onTermInput);
+  $("#term-input").addEventListener("keydown", onTermKey);
+  $("#term-input").addEventListener("blur", () => setTimeout(() => { term.open = false; renderSuggestions(); }, 120));
+
+  // Backups
+  $("#bk-create").addEventListener("click", createSnapshotUI);
+  $("#bk-refresh").addEventListener("click", loadSnapshots);
+  $("#sc-save").addEventListener("click", saveSchedule);
   $("#search").addEventListener("input", (e) => { state.filter = e.target.value; renderContainers(state.containers); });
   $("#auto").addEventListener("change", (e) => setAutoRefresh(e.target.checked));
   $("#fs-container").addEventListener("change", (e) => { state.files = { name: e.target.value, path: "/" }; loadDir(); });
