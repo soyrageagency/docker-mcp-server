@@ -628,7 +628,12 @@ export class PanelService {
   setSchedule(next: Record<string, unknown>): BackupSchedule {
     const s = this.schedule;
     if (typeof next.enabled === "boolean") s.enabled = next.enabled;
-    if (typeof next.time === "string" && /^\d{1,2}:\d{2}$/.test(next.time)) s.time = next.time;
+    if (typeof next.time === "string") {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(next.time.trim());
+      if (m && Number(m[1]) <= 23 && Number(m[2]) <= 59) {
+        s.time = `${m[1].padStart(2, "0")}:${m[2]}`;
+      }
+    }
     if (Array.isArray(next.containers)) s.containers = next.containers.map(String);
     if (next.type === "commit" || next.type === "export") s.type = next.type;
     if (typeof next.email === "string") s.email = next.email;
