@@ -361,6 +361,7 @@ body.locked { overflow: hidden; }
   max-width: 1120px; margin: 0 auto; padding: 20px 26px 40px;
   color: var(--muted); font-size: 12px;
 }
+.footer .donate { color: var(--amber); font-weight: 600; }
 
 @media (max-width: 900px) {
   .stats { grid-template-columns: repeat(2, 1fr); }

@@ -235,6 +235,7 @@ export class TuiApp {
         )} and share it.`,
         cols,
       ),
+      center(`${color.yellow("☕")} Support the project: ${color.brightBlue(BRAND.donate)}`, cols),
       "",
       center(color.dim("Press any key to launch the dashboard…"), cols),
     ];
@@ -388,7 +389,7 @@ export class TuiApp {
   }
 
   private footerBrand(cols: number): string {
-    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)} ${color.dim("·")} ${color.yellow("★")} star us on GitHub`;
+    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)} ${color.dim("·")} ${color.yellow("★")} star us ${color.dim("·")} ${color.yellow("☕")} ${color.brightBlue(BRAND.donate)}`;
     return " " + text + " ".repeat(Math.max(0, cols - 2 - stripLen(text)));
   }
 }

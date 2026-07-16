@@ -366,9 +366,26 @@ const CATALOG = [
 
 const term = { sugg: [], sel: 0, open: false };
 
+/** Levenshtein edit distance (small strings) — used for typo tolerance. */
+function lev(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[m][n];
+}
+
+/**
+ * Build ranked command suggestions. Tolerant of typos in the `docker` keyword
+ * (e.g. "dokcer", "dcoker" → docker) and of omitting it entirely (typing just
+ * "ps" or "logs web" still suggests the full command), so novices never get
+ * the prompt wrong.
+ */
 function buildSuggestions(input) {
   const names = state.containers.map((c) => c.name);
-  const q = input.trim().toLowerCase();
   const expanded = [];
   for (const e of CATALOG) {
     if (e.t.includes("<c>")) {
@@ -378,11 +395,31 @@ function buildSuggestions(input) {
       expanded.push({ text: e.t, desc: e.d });
     }
   }
+
+  const q = input.trim().toLowerCase();
   if (!q) return expanded.slice(0, 8);
+
+  const tokens = q.split(/\s+/);
+  const first = tokens[0];
+  const rest = tokens.slice(1).join(" ");
+  // Is the first token "docker" (or a near-miss typo of it)?
+  const dockerish = first === "docker" || "docker".startsWith(first) || lev(first, "docker") <= 2;
+
   const scored = expanded
-    .map((s) => ({ ...s, score: s.text.toLowerCase().startsWith(q) ? 2 : s.text.toLowerCase().includes(q) ? 1 : 0 }))
+    .map((s) => {
+      const text = s.text.toLowerCase();
+      const afterDocker = text.slice(7); // drop "docker "
+      let score = 0;
+      if (text.startsWith(q)) score = 6;
+      else if (text.includes(q)) score = 4;
+      else if (dockerish && (rest === "" || afterDocker.includes(rest))) score = 3; // typo'd/partial docker
+      else if (afterDocker.startsWith(first)) score = 2; // typed a subcommand without "docker"
+      else if (afterDocker.includes(first)) score = 1;
+      return { ...s, score };
+    })
     .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || a.text.length - b.text.length);
+
   return scored.slice(0, 8);
 }
 
@@ -579,6 +616,7 @@ async function init() {
   seedTerminal();
   $("#term-input").addEventListener("input", onTermInput);
   $("#term-input").addEventListener("keydown", onTermKey);
+  $("#term-input").addEventListener("focus", onTermInput); // suggest immediately
   $("#term-input").addEventListener("blur", () => setTimeout(() => { term.open = false; renderSuggestions(); }, 120));
 
   // Backups
