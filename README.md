@@ -6,15 +6,6 @@
 
 <br/>
 
-```
- ███████╗ ██████╗ ██╗   ██╗██████╗  █████╗  ██████╗ ███████╗
- ██╔════╝██╔═══██╗╚██╗ ██╔╝██╔══██╗██╔══██╗██╔════╝ ██╔════╝
- ███████╗██║   ██║ ╚████╔╝ ██████╔╝███████║██║  ███╗█████╗
- ╚════██║██║   ██║  ╚██╔╝  ██╔══██╗██╔══██║██║   ██║██╔══╝
- ███████║╚██████╔╝   ██║   ██║  ██║██║  ██║╚██████╔╝███████╗
- ╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
-```
-
 # 🐳 Docker MCP Server
 
 **Chat with your Docker host.** A [Model Context Protocol](https://modelcontextprotocol.io) server that turns any MCP‑capable AI — Claude Desktop, Cursor, Continue, Zed — into a natural‑language DevOps copilot for **Docker & Docker Compose**.
