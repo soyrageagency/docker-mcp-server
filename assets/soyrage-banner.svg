@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 320" width="1000" height="320" role="img" aria-label="SoyRage — Full-Stack Developer x Infrastructure Engineer. Founder @ SoyRage Agency. Valencia, Spain. soyrage.es">
+  <!--
+    SoyRage Agency identity banner.
+    Crafted by SoyRage Agency — https://soyrage.es/
+    Part of Docker MCP Server. Attribution must remain intact (see LICENSE).
+  -->
+  <defs>
+    <!-- Subtle blueprint grid -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#E2E2DE" stroke-width="1"/>
+    </pattern>
+    <!-- Soft shadow for the chat pills -->
+    <filter id="pill" x="-20%" y="-40%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0B1020" flood-opacity="0.10"/>
+    </filter>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4AA8F5"/>
+      <stop offset="1" stop-color="#2F97EE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Card background -->
+  <rect x="2" y="2" width="996" height="316" rx="18" fill="#ECECEA"/>
+  <rect x="2" y="2" width="996" height="316" rx="18" fill="url(#grid)"/>
+  <rect x="2.5" y="2.5" width="995" height="315" rx="17.5" fill="none" stroke="#E0E0DC" stroke-width="1"/>
+
+  <!-- Wordmark: SOY + R (accent) + AGE -->
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="800">
+    <text x="500" y="132" text-anchor="middle" font-size="118" letter-spacing="4">
+      <tspan fill="#111418">SOY</tspan><tspan fill="url(#accent)">R</tspan><tspan fill="#111418">AGE</tspan>
+    </text>
+  </g>
+
+  <!-- Subtitle -->
+  <text x="500" y="182" text-anchor="middle"
+        font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="15" font-weight="600" letter-spacing="6" fill="#9A9A96">
+    FULL–STACK DEVELOPER <tspan fill="#3B9EF0">×</tspan> INFRASTRUCTURE ENGINEER
+  </text>
+
+  <!-- Chat pills -->
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="14">
+    <!-- Founder pill (white) -->
+    <g filter="url(#pill)">
+      <rect x="350" y="205" width="300" height="31" rx="15.5" fill="#FFFFFF"/>
+      <text x="500" y="225" text-anchor="middle" fill="#2A2D33">Founder @ SoyRage Agency</text>
+    </g>
+
+    <!-- Collaborator pill (accent) -->
+    <g filter="url(#pill)">
+      <rect x="440" y="243" width="320" height="33" rx="16.5" fill="url(#accent)"/>
+      <text x="600" y="264" text-anchor="middle" fill="#FFFFFF">Collaborator @ RageStudio ✕ Comty</text>
+    </g>
+
+    <!-- Location pill (white) -->
+    <g filter="url(#pill)">
+      <rect x="332" y="283" width="278" height="31" rx="15.5" fill="#FFFFFF"/>
+      <text x="471" y="303" text-anchor="middle" fill="#2A2D33">Valencia, Spain · open to work.</text>
+    </g>
+
+    <!-- Dots pill (white) -->
+    <g filter="url(#pill)">
+      <rect x="622" y="283" width="54" height="31" rx="15.5" fill="#FFFFFF"/>
+      <circle cx="640" cy="299" r="2.6" fill="#B7B7B2"/>
+      <circle cx="649" cy="299" r="2.6" fill="#B7B7B2"/>
+      <circle cx="658" cy="299" r="2.6" fill="#B7B7B2"/>
+    </g>
+  </g>
+</svg>
