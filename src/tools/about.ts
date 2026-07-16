@@ -59,6 +59,7 @@ export function registerAboutTool({ server, config, plugins }: ToolContext): voi
           `Product : ${BRAND.product} v${BRAND.version}`,
           `Author  : ${BRAND.author}`,
           `Website : ${BRAND.url}`,
+          `Support : ${BRAND.donate}  ☕`,
           `Mode    : ${mode}${config.allowExec ? " (exec enabled)" : ""}`,
           "License : SoyRage Attribution License — attribution must remain visible.",
           "",

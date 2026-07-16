@@ -19,8 +19,11 @@
 [![MCP](https://img.shields.io/badge/MCP-1.x-6E56CF)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/Docker-Engine%20API-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/engine/api/)
 [![License: SRAL](https://img.shields.io/badge/License-SoyRage%20Attribution-orange)](./LICENSE)
+[![Donate](https://img.shields.io/badge/Support-PayPal-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/soyrageagency)
 
 ### Designed, built & maintained by **[SoyRage Agency](https://soyrage.es/)** · **https://soyrage.es/**
+
+**⚡ New here? Install in one command → [Quick install](#-quick-install-one-command).**  ·  **☕ [Support the project](https://www.paypal.com/paypalme/soyrageagency)**
 
 </div>
 
@@ -28,6 +31,7 @@
 
 ## 📑 Table of contents
 
+- [Quick install (one command)](#-quick-install-one-command)
 - [What is this?](#-what-is-this)
 - [Why it exists](#-why-it-exists)
 - [Feature overview](#-feature-overview)
@@ -53,7 +57,34 @@
 - [Roadmap](#-roadmap)
 - [Contributing](#-contributing)
 - [About SoyRage Agency](#-about-soyrage-agency)
+- [Support the project](#-support-the-project)
 - [Credits & License](#-credits--license)
+
+---
+
+## ⚡ Quick install (one command)
+
+New to this? The installer clones the project, builds it, and **configures Claude Desktop for you** — no manual JSON editing. You only need [Git](https://git-scm.com/) and [Node.js ≥ 18](https://nodejs.org/).
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/soyrageagency/docker-mcp-server/main/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/soyrageagency/docker-mcp-server/main/install.sh | bash
+```
+
+Already cloned the repo? Just run:
+```bash
+npm run setup          # builds + configures Claude Desktop
+```
+
+Then **restart Claude Desktop** and ask: *“What Docker containers are running?”* 🎉
+The installer **backs up** your existing config and **merges** the entry, so any other MCP servers you have are preserved. Prefer to see the snippet without writing anything? `node scripts/install.mjs --print`.
+
+> 💙 If this saves you time, please [**support the project on PayPal**](https://www.paypal.com/paypalme/soyrageagency) and drop a ⭐ — it genuinely helps SoyRage Agency keep building in the open.
 
 ---
 
@@ -567,7 +598,9 @@ docker-mcp-server/
 │   ├── docker-mcp.config.json  # Reproducible config-file example
 │   └── demo-stack/
 │       └── compose.yaml      # nginx + redis playground
+├── install.sh / install.ps1  # One-command bootstrap for beginners
 ├── scripts/
+│   ├── install.mjs           # Cross-platform Claude Desktop configurator
 │   ├── copy-public.mjs       # Copies panel assets into dist/ after build
 │   ├── shots.mjs             # Regenerates the panel screenshots (Playwright)
 │   └── tui-shot.mjs          # Renders the TUI to PNG (ANSI→HTML→Playwright)
@@ -724,6 +757,22 @@ Contributions are welcome! Please:
 - 📫 Work with us: **[soyrage.es](https://soyrage.es/)**
 
 If this project is useful to you, a ⭐ on the repo and a link back to **[soyrage.es](https://soyrage.es/)** genuinely help us keep building in the open. Thank you! 🙌
+
+---
+
+## 💙 Support the project
+
+Docker MCP Server is built and maintained in the open by **SoyRage Agency**. If it saves you time or you use it at work, please consider supporting continued development — it directly funds new features (native SMTP/S3 backups, historical charts, more integrations) and keeps the project free.
+
+<div align="center">
+
+[![Support on PayPal](https://img.shields.io/badge/☕%20Support%20on-PayPal-00457C?logo=paypal&logoColor=white&style=for-the-badge)](https://www.paypal.com/paypalme/soyrageagency)
+
+**paypal.me/soyrageagency** · a ⭐ on the repo also helps a lot!
+
+</div>
+
+Other ways to help: share it on r/selfhosted, report issues, open PRs, or hire [SoyRage Agency](https://soyrage.es/) for custom DevOps + AI tooling.
 
 ---
 
