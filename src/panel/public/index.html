@@ -22,6 +22,15 @@
         <span class="divider">/</span>
         <span class="product">Docker&nbsp;Panel</span>
       </div>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="files">Files</button>
+        <button class="tab" data-tab="alerts">
+          Alerts <span id="alert-count" class="pill hidden">0</span>
+        </button>
+      </nav>
+
       <div class="topbar-right">
         <span id="badge-demo" class="badge badge-demo hidden">DEMO</span>
         <span id="badge-ro" class="badge badge-ro hidden">READ-ONLY</span>
@@ -31,48 +40,86 @@
     </header>
 
     <main class="wrap">
-      <!-- Stat cards -->
-      <section class="stats" id="stats" aria-label="Host statistics"></section>
+      <!-- ============ OVERVIEW ============ -->
+      <section id="tab-overview" class="tabpane">
+        <div class="stats" id="stats" aria-label="Host statistics"></div>
 
-      <!-- Containers -->
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Containers</h2>
-          <button id="refresh" class="ghost" title="Refresh">⟳ Refresh</button>
-        </div>
-        <div class="table-wrap">
-          <table class="grid" aria-label="Containers">
-            <thead>
-              <tr>
-                <th>State</th>
-                <th>Name</th>
-                <th>Image</th>
-                <th>CPU</th>
-                <th>Memory</th>
-                <th>Ports</th>
-                <th class="right">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="containers"></tbody>
-          </table>
-        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Containers</h2>
+            <div class="tools">
+              <input id="search" class="input" type="search" placeholder="Filter containers…" />
+              <label class="chk"><input type="checkbox" id="auto" checked /> Auto</label>
+              <button id="refresh" class="ghost" title="Refresh">⟳ Refresh</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="grid" aria-label="Containers">
+              <thead>
+                <tr>
+                  <th>State</th>
+                  <th>Name</th>
+                  <th>Image</th>
+                  <th>CPU</th>
+                  <th>Memory</th>
+                  <th>Ports</th>
+                  <th class="center">Auto</th>
+                  <th class="right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="containers"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Images</h2></div>
+          <div class="table-wrap">
+            <table class="grid" aria-label="Images">
+              <thead>
+                <tr><th>Repository:Tag</th><th>Image ID</th><th class="right">Size</th></tr>
+              </thead>
+              <tbody id="images"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
-      <!-- Images -->
-      <section class="panel">
-        <div class="panel-head"><h2>Images</h2></div>
-        <div class="table-wrap">
-          <table class="grid" aria-label="Images">
-            <thead>
-              <tr><th>Repository:Tag</th><th>Image ID</th><th class="right">Size</th></tr>
-            </thead>
-            <tbody id="images"></tbody>
-          </table>
-        </div>
+      <!-- ============ FILES ============ -->
+      <section id="tab-files" class="tabpane hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>File explorer</h2>
+            <div class="tools">
+              <select id="fs-container" class="input"></select>
+              <button id="fs-up" class="ghost" title="Up one level">↑ Up</button>
+            </div>
+          </div>
+          <div class="crumbs" id="fs-crumbs"></div>
+          <div class="table-wrap">
+            <table class="grid">
+              <thead>
+                <tr><th>Type</th><th>Name</th><th class="right">Size</th></tr>
+              </thead>
+              <tbody id="fs-list"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ ALERTS ============ -->
+      <section id="tab-alerts" class="tabpane hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Alerts &amp; log watch</h2>
+            <button id="alerts-refresh" class="ghost">⟳ Refresh</button>
+          </div>
+          <div id="alerts-list" class="alerts"></div>
+        </section>
       </section>
     </main>
 
-    <!-- Logs drawer -->
+    <!-- Drawer (logs & file content) -->
     <div id="drawer" class="drawer hidden" role="dialog" aria-modal="true">
       <div class="drawer-head">
         <h3 id="drawer-title">Logs</h3>

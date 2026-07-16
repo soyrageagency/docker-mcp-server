@@ -151,6 +151,38 @@ export function createPanelServer(
         return sendJson(res, 200, { logs: await service.logs(name, tail) });
       }
 
+      // ---- Alerts --------------------------------------------------------
+      if (path === "/api/alerts") {
+        return sendJson(res, 200, { alerts: await service.alerts() });
+      }
+
+      // ---- File explorer -------------------------------------------------
+      if (path === "/api/files") {
+        const name = url.searchParams.get("name") ?? "";
+        if (!name) return sendJson(res, 400, { error: "Missing ?name=" });
+        const dir = url.searchParams.get("path") ?? "/";
+        return sendJson(res, 200, await service.listFiles(name, dir));
+      }
+
+      if (path === "/api/file") {
+        const name = url.searchParams.get("name") ?? "";
+        const file = url.searchParams.get("path") ?? "";
+        if (!name || !file) return sendJson(res, 400, { error: "Missing ?name= or ?path=" });
+        return sendJson(res, 200, await service.readFile(name, file));
+      }
+
+      // ---- Auto-restart --------------------------------------------------
+      if (path === "/api/autorestart" && req.method === "GET") {
+        return sendJson(res, 200, { enabled: service.autoRestartList() });
+      }
+
+      if (path === "/api/autorestart" && req.method === "POST") {
+        const body = (await readBody(req)) as { name?: string; enabled?: boolean };
+        if (!body.name) return sendJson(res, 400, { error: "Expected { name, enabled }." });
+        service.setAutoRestart(body.name, body.enabled !== false);
+        return sendJson(res, 200, { ok: true, enabled: service.autoRestartList() });
+      }
+
       if (path === "/api/action" && req.method === "POST") {
         const body = (await readBody(req)) as {
           name?: string;
@@ -188,6 +220,8 @@ export function startPanel(
 ): Promise<void> {
   const server = createPanelServer(service, config, logger);
   const { host, port } = config.panel;
+  // Kick off the auto-restart watchdog (no-op until a container opts in).
+  service.startWatchdog();
   return new Promise((resolvePromise) => {
     server.listen(port, host, () => {
       logger.info(`Panel ready at http://${host}:${port}`);
