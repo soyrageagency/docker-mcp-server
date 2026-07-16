@@ -26,6 +26,9 @@ const ICONS = {
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   chevron: '<path d="m9 18 6-6-6-6"/>',
   coffee: '<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/>',
+  save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  sparkles: '<path d="M9.9 2.6 8.5 6.4 4.7 7.8l3.8 1.4 1.4 3.8 1.4-3.8 3.8-1.4-3.8-1.4z"/><path d="M18 7v4"/><path d="M20 9h-4"/><path d="M17 17v3"/><path d="M18.5 18.5h-3"/>',
+  ai: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
 };
 const FILLED = new Set(["play", "stop"]);
 function icon(name) {
@@ -260,7 +263,7 @@ async function loadDir() {
       el.addEventListener("click", () => {
         const child = (state.files.path === "/" ? "" : state.files.path) + "/" + el.dataset.name;
         if (el.dataset.type === "dir") { state.files.path = child; loadDir(); }
-        else if (el.dataset.type === "file") showFile(name, child);
+        else if (el.dataset.type === "file") openEditor(name, child);
       });
     });
   } catch (err) {
@@ -300,29 +303,73 @@ function updateAlertBadge(alerts) {
 
 /* ----------------------------------------------------------------- drawer */
 
+function drawerPre(text) {
+  $("#drawer-body").innerHTML = `<pre class="logs">${escapeHtml(text)}</pre>`;
+}
+
 async function showLogs(name) {
   openDrawer(`Logs · ${name}`, "Loading…");
   try {
     const { logs } = await api(`/api/logs?name=${encodeURIComponent(name)}`);
-    $("#drawer-body").textContent = logs || "(no output)";
+    drawerPre(logs || "(no output)");
   } catch (err) {
-    $("#drawer-body").textContent = `Error: ${err.message}`;
+    drawerPre(`Error: ${err.message}`);
   }
 }
 
-async function showFile(name, path) {
-  openDrawer(`${name} : ${path}`, "Loading…");
+/* ------------------------------------------------------------- file editor */
+
+async function openEditor(name, path) {
+  openDrawer(`Edit · ${name} : ${path}`, "Loading…");
+  const ro = state.meta.readOnly;
+  const aiBtn = state.meta.ai && !ro ? `<button id="ed-ai" class="ghost">${icon("sparkles")} AI edit</button>` : "";
+  const saveBtn = ro ? `<span class="badge badge-ro">READ-ONLY</span>` : `<button id="ed-save" class="primary">${icon("save")} Save</button>`;
+  $("#drawer-body").innerHTML = `
+    <div class="editor-bar">
+      <span class="mono muted">${escapeHtml(path)}</span>
+      <div class="editor-actions">${aiBtn}${saveBtn}</div>
+    </div>
+    <textarea id="editor" class="editor" spellcheck="false" ${ro ? "readonly" : ""}></textarea>
+    <div id="ed-status" class="ed-status muted"></div>`;
+  const ta = $("#editor");
+  ta.value = "Loading…";
   try {
     const { content, truncated } = await api(`/api/file?name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`);
-    $("#drawer-body").textContent = (content || "(empty)") + (truncated ? "\n\n… (truncated)" : "");
+    ta.value = content || "";
+    if (truncated) $("#ed-status").textContent = "File truncated to 128 KB for viewing.";
   } catch (err) {
-    $("#drawer-body").textContent = `Error: ${err.message}`;
+    ta.value = `Error: ${err.message}`;
   }
+
+  const save = $("#ed-save");
+  if (save) save.addEventListener("click", async () => {
+    save.disabled = true; $("#ed-status").textContent = "Saving…";
+    try {
+      const r = await api("/api/file", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, path, content: ta.value }) });
+      $("#ed-status").textContent = `Saved ${r.bytes} bytes to ${r.path}.`;
+    } catch (err) {
+      $("#ed-status").textContent = `Save failed: ${err.message}`;
+    } finally { save.disabled = false; }
+  });
+
+  const ai = $("#ed-ai");
+  if (ai) ai.addEventListener("click", async () => {
+    const instruction = prompt("Describe the change for the AI copilot:");
+    if (!instruction) return;
+    ai.disabled = true; $("#ed-status").textContent = "AI is editing…";
+    try {
+      const r = await api("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "edit", prompt: instruction, context: ta.value }) });
+      if (r.content != null) { ta.value = r.content; $("#ed-status").textContent = `AI applied your change (${r.source}). Review, then Save.`; }
+      else $("#ed-status").textContent = r.text || "AI returned no content.";
+    } catch (err) {
+      $("#ed-status").textContent = `AI failed: ${err.message}`;
+    } finally { ai.disabled = false; }
+  });
 }
 
 function openDrawer(title, body) {
   $("#drawer-title").textContent = title;
-  $("#drawer-body").textContent = body;
+  drawerPre(body || "");
   $("#drawer").classList.remove("hidden");
   $("#scrim").classList.remove("hidden");
   document.body.classList.add("locked"); // lock background scroll (bugfix)
@@ -360,9 +407,9 @@ async function showDetails(name) {
       "Environment:",
       ...(d.env.length ? d.env.map((e) => "  " + e) : ["  —"]),
     ].join("\n");
-    $("#drawer-body").textContent = body;
+    drawerPre(body);
   } catch (err) {
-    $("#drawer-body").textContent = `Error: ${err.message}`;
+    drawerPre(`Error: ${err.message}`);
   }
 }
 
@@ -448,7 +495,14 @@ function buildSuggestions(input) {
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score || a.text.length - b.text.length);
 
-  return scored.slice(0, 8);
+  const list = scored.slice(0, 8);
+  // When AI is available and the input isn't a strong docker match, offer to
+  // ask the AI copilot (natural language → command).
+  if (state.meta.ai && q.length >= 3) {
+    const strong = list[0] && list[0].score >= 4;
+    if (!strong) list.unshift({ ai: true, text: `Ask AI: ${input.trim()}`, raw: input.trim(), desc: "AI copilot → docker command" });
+  }
+  return list.slice(0, 8);
 }
 
 function renderSuggestions() {
@@ -456,8 +510,8 @@ function renderSuggestions() {
   if (!term.open || term.sugg.length === 0) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   box.innerHTML = term.sugg
-    .map((s, i) => `<div class="sugg ${i === term.sel ? "sel" : ""}" data-i="${i}">
-      <span class="sugg-cmd mono">${escapeHtml(s.text)}</span><span class="sugg-desc">${escapeHtml(s.desc)}</span></div>`)
+    .map((s, i) => `<div class="sugg ${i === term.sel ? "sel" : ""} ${s.ai ? "ai" : ""}" data-i="${i}">
+      <span class="sugg-cmd mono">${s.ai ? icon("sparkles") + " " : ""}${escapeHtml(s.text)}</span><span class="sugg-desc">${escapeHtml(s.desc)}</span></div>`)
     .join("");
   box.querySelectorAll(".sugg").forEach((el) => el.addEventListener("mousedown", (ev) => { ev.preventDefault(); acceptSugg(Number(el.dataset.i), true); }));
 }
@@ -465,10 +519,29 @@ function renderSuggestions() {
 function acceptSugg(i, run) {
   const s = term.sugg[i];
   if (!s) return;
+  if (s.ai) { term.open = false; renderSuggestions(); askAI(s.raw); return; }
   $("#term-input").value = s.text;
   term.open = false; renderSuggestions();
   if (run) runTerm();
   $("#term-input").focus();
+}
+
+/** Ask the AI copilot for a command; propose it (user reviews, then Enter). */
+async function askAI(text) {
+  const out = $("#term-out");
+  out.insertAdjacentHTML("beforeend", `<div class="to-cmd"><span class="prompt">${icon("sparkles")}</span> ${escapeHtml("Ask AI: " + text)}</div>`);
+  try {
+    const r = await api("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "command", prompt: text }) });
+    if (r.command) {
+      out.insertAdjacentHTML("beforeend", `<div class="to-out"><b>${escapeHtml(r.command)}</b>${r.explanation ? " — " + escapeHtml(r.explanation) : ""}<span class="muted"> (review, then Enter to run)</span></div>`);
+      const inp = $("#term-input"); inp.value = r.command; inp.focus();
+    } else {
+      out.insertAdjacentHTML("beforeend", `<div class="to-out muted">${escapeHtml(r.text || "(no answer)")}</div>`);
+    }
+  } catch (err) {
+    out.insertAdjacentHTML("beforeend", `<div class="to-out err">${escapeHtml(err.message)}</div>`);
+  }
+  out.scrollTop = out.scrollHeight;
 }
 
 function onTermInput(e) {
@@ -508,9 +581,12 @@ async function runTerm() {
 }
 
 function seedTerminal() {
+  const aiLine = state.meta.ai
+    ? `\n<b>AI copilot</b> is on: type a request in plain English (e.g. <b>why did web crash</b>) and pick <b>Ask AI</b> — it proposes a command you review, then run.`
+    : "";
   $("#term-out").innerHTML =
-    `<div class="to-out muted">Docker terminal — type <b>docker …</b>, press <b>Tab</b> to complete a suggestion, <b>↑/↓</b> to pick, <b>Enter</b> to run.
-Read-only commands always work; write commands respect read-only mode. Try: <b>docker ps -a</b></div>`;
+    `<div class="to-out muted">Docker terminal — type <b>docker …</b>, press <b>Tab</b> to complete, <b>↑/↓</b> to pick, <b>Enter</b> to run.
+Read-only commands always work; write commands respect read-only mode. Try: <b>docker ps -a</b>${aiLine}</div>`;
 }
 
 /* --------------------------------------------------------------- backups */

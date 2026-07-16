@@ -105,6 +105,21 @@ async function main() {
   ok("file read returns content", typeof file?.content === "string" && file.content.includes("name"));
   eq("file missing params → 400", (await jget(BASE, "/api/file?name=api")).status, 400);
 
+  // ---- 3b. File editor & AI copilot ------------------------------------
+  G("File editor & AI");
+  const wrote = (await jpost(BASE, "/api/file", { name: "api", path: "/app/notes.txt", content: "hello soyrage\n" })).body;
+  ok("write file returns bytes", wrote?.bytes > 0 && wrote.path === "/app/notes.txt");
+  const readBack = (await jget(BASE, "/api/file?name=api&path=/app/notes.txt")).body;
+  ok("edited file reads back", readBack?.content === "hello soyrage\n");
+  const listAfter = (await jget(BASE, "/api/files?name=api&path=/app")).body;
+  ok("new file appears in listing", listAfter?.entries?.some((e) => e.name === "notes.txt"));
+  eq("write missing fields → 400", (await jpost(BASE, "/api/file", { name: "api" })).status, 400);
+  const aiCmd = (await jpost(BASE, "/api/ai", { mode: "command", prompt: "why did web crash, show me logs" })).body;
+  ok("AI command returns a docker command", /^docker /.test(aiCmd?.command || ""));
+  const aiEdit = (await jpost(BASE, "/api/ai", { mode: "edit", prompt: "add a header", context: "echo hi" })).body;
+  ok("AI edit returns content", typeof aiEdit?.content === "string" && aiEdit.content.includes("echo hi"));
+  eq("AI missing prompt → 400", (await jpost(BASE, "/api/ai", {})).status, 400);
+
   // ---- 4. Terminal command runner (allow/deny) -------------------------
   G("Terminal runner");
   const rPs = (await jpost(BASE, "/api/run", { command: "docker ps" })).body;
@@ -158,6 +173,8 @@ async function main() {
   ok("write command blocked in read-only", roRun?.code === 1 && /read-only/i.test(roRun.output));
   const roRead = (await jpost(RO, "/api/run", { command: "docker ps" })).body;
   ok("read command allowed in read-only", roRead?.code === 0);
+  const roWrite = await jpost(RO, "/api/file", { name: "api", path: "/app/x.txt", content: "x" });
+  ok("file save blocked in read-only", roWrite.status >= 400 || roWrite.body?.error);
   roPanel.kill();
 
   // ---- 10. Metrics-disabled panel (:4672) ------------------------------
