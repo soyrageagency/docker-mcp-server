@@ -35,17 +35,26 @@ function escapeHtml(s) {
   );
 }
 
-/** Render the top stat cards from the system summary. */
-function renderStats(sys) {
+/** Render the top stat cards from a monitoring snapshot. */
+function renderStats(snap) {
+  const sys = snap.system;
+  const memPct = sys.memoryBytes ? (snap.memoryUsed / sys.memoryBytes) * 100 : 0;
+  const cpuPct = sys.cpus ? Math.min(100, snap.cpuTotal / sys.cpus) : snap.cpuTotal;
   const cards = [
-    { k: "Running", v: `${sys.containersRunning}` },
-    { k: "Containers", v: `${sys.containersTotal}` },
+    { k: "Running", v: `${sys.containersRunning}<small> / ${sys.containersTotal}</small>` },
     { k: "Images", v: `${sys.images}` },
+    { k: "CPU load", v: `${cpuPct.toFixed(1)}<small> %</small>`, bar: cpuPct },
+    { k: "Memory used", v: `${bytes(snap.memoryUsed)}`, sub: `of ${bytes(sys.memoryBytes)}`, bar: memPct },
     { k: "vCPUs", v: `${sys.cpus}` },
-    { k: "Memory", v: bytes(sys.memoryBytes) },
   ];
   $("#stats").innerHTML = cards
-    .map((c) => `<div class="stat"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`)
+    .map((c) => {
+      const bar = c.bar !== undefined
+        ? `<div class="meter"><span style="width:${Math.min(100, c.bar).toFixed(1)}%"></span></div>`
+        : "";
+      const sub = c.sub ? `<div class="sub">${c.sub}</div>` : "";
+      return `<div class="stat"><div class="k">${c.k}</div><div class="v">${c.v}</div>${sub}${bar}</div>`;
+    })
     .join("");
   $("#engine").textContent = `${escapeHtml(sys.os)} · Docker ${escapeHtml(sys.engine)}`;
 }
@@ -68,12 +77,17 @@ function renderContainers(list) {
       const ports = c.ports.length
         ? `<div class="chips">${c.ports.map((p) => `<span class="chip">${escapeHtml(p)}</span>`).join("")}</div>`
         : '<span class="muted">—</span>';
+      const running = c.state === "running";
+      const cpu = running ? usageCell(c.cpu ?? 0, `${(c.cpu ?? 0).toFixed(1)}%`, Math.min(100, c.cpu ?? 0)) : '<span class="muted">—</span>';
+      const memPct = c.memoryLimit ? ((c.memory ?? 0) / c.memoryLimit) * 100 : 0;
+      const mem = running ? usageCell(memPct, bytes(c.memory ?? 0), memPct) : '<span class="muted">—</span>';
       return `
         <tr>
           <td><span class="dot ${cls}">${escapeHtml(c.state)}</span></td>
           <td class="name clickable" data-logs="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
           <td class="mono">${escapeHtml(c.image)}</td>
-          <td class="muted">${escapeHtml(c.status)}</td>
+          <td>${cpu}</td>
+          <td>${mem}</td>
           <td>${ports}</td>
           <td>
             <div class="actions">
@@ -140,16 +154,19 @@ function closeDrawer() {
   $("#scrim").classList.add("hidden");
 }
 
-/** Load everything. */
+/** A compact usage cell: colored value + a thin meter bar. */
+function usageCell(level, label, pct) {
+  const tone = level >= 80 ? "hot" : level >= 50 ? "warm" : "cool";
+  return `<div class="usage"><span class="mono">${escapeHtml(label)}</span>
+    <div class="meter ${tone}"><span style="width:${Math.min(100, pct).toFixed(1)}%"></span></div></div>`;
+}
+
+/** Load a full monitoring snapshot and render everything. */
 async function refresh() {
-  const [sys, containers, images] = await Promise.all([
-    api("/api/system"),
-    api("/api/containers"),
-    api("/api/images"),
-  ]);
-  renderStats(sys);
-  renderContainers(containers);
-  renderImages(images);
+  const snap = await api("/api/snapshot");
+  renderStats(snap);
+  renderContainers(snap.containers);
+  renderImages(snap.images);
 }
 
 /** Bootstrap. */
@@ -174,7 +191,7 @@ async function init() {
 }
 
 function showError(err) {
-  $("#containers").innerHTML = `<tr><td colspan="6" class="muted">Could not load data: ${escapeHtml(err.message)}. Try demo mode (DOCKER_MCP_PANEL_DEMO=true).</td></tr>`;
+  $("#containers").innerHTML = `<tr><td colspan="7" class="muted">Could not load data: ${escapeHtml(err.message)}. Try demo mode (DOCKER_MCP_PANEL_DEMO=true).</td></tr>`;
 }
 
 init();

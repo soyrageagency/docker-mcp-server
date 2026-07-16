@@ -36,7 +36,7 @@ interface FileConfig {
   composeCwd?: string;
   logLevel?: string;
   plugins?: { enabled?: string[]; disabled?: string[] };
-  panel?: { host?: string; port?: number; demo?: boolean };
+  panel?: { host?: string; port?: number; demo?: boolean; metrics?: boolean };
 }
 
 /** Read and parse the JSON config file, if present. Never throws. */
@@ -128,6 +128,8 @@ export interface PanelConfig {
   readonly port: number;
   /** Serve fabricated demo data instead of touching a real daemon. */
   readonly demo: boolean;
+  /** Expose the Prometheus `/metrics` endpoint (for Prometheus/Zabbix/…). */
+  readonly metrics: boolean;
 }
 
 /** Fully-resolved, immutable server configuration. */
@@ -188,6 +190,7 @@ export function loadConfig(): AppConfig {
       host: envStr("DOCKER_MCP_PANEL_HOST", file.panel?.host ?? "127.0.0.1"),
       port: envInt("DOCKER_MCP_PANEL_PORT", file.panel?.port ?? 4600),
       demo: envFlag("DOCKER_MCP_PANEL_DEMO", file.panel?.demo ?? false),
+      metrics: envFlag("DOCKER_MCP_PANEL_METRICS", file.panel?.metrics ?? true),
     }),
   });
 }

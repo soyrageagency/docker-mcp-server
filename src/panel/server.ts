@@ -112,8 +112,28 @@ export function createPanelServer(
         });
       }
 
+      // Prometheus / Zabbix scrape endpoint.
+      if (path === "/metrics") {
+        if (!config.panel.metrics) {
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          res.end("metrics disabled");
+          return;
+        }
+        const body = await service.prometheus();
+        res.writeHead(200, {
+          "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+          "Cache-Control": "no-store",
+        });
+        res.end(body);
+        return;
+      }
+
       if (path === "/api/system") {
         return sendJson(res, 200, await service.system());
+      }
+
+      if (path === "/api/snapshot") {
+        return sendJson(res, 200, await service.snapshot());
       }
 
       if (path === "/api/containers") {
@@ -171,6 +191,9 @@ export function startPanel(
   return new Promise((resolvePromise) => {
     server.listen(port, host, () => {
       logger.info(`Panel ready at http://${host}:${port}`);
+      if (config.panel.metrics) {
+        logger.info(`Prometheus metrics at http://${host}:${port}/metrics`);
+      }
       resolvePromise();
     });
   });

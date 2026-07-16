@@ -19,6 +19,7 @@
   "panel": {
     "host": "127.0.0.1",
     "port": 4600,
-    "demo": false
+    "demo": false,
+    "metrics": true
   }
 }

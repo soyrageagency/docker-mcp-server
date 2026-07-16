@@ -120,6 +120,28 @@ a:hover { text-decoration: underline; }
 .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 .stat .v { font-size: 26px; font-weight: 700; margin-top: 6px; font-family: var(--mono); }
 .stat .v small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.stat .sub { color: var(--muted); font-size: 11px; margin-top: 2px; font-family: var(--mono); }
+
+/* Meter bars (stat cards + table usage) */
+.meter {
+  height: 5px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #6cc0ff);
+  transition: width 0.5s ease;
+}
+.usage { min-width: 92px; }
+.usage .meter { margin-top: 6px; height: 4px; }
+.meter.cool > span { background: linear-gradient(90deg, var(--green), #7ee4ad); }
+.meter.warm > span { background: linear-gradient(90deg, var(--amber), #ffd27a); }
+.meter.hot > span { background: linear-gradient(90deg, var(--red), #ff8f89); }
 
 /* Panels */
 .panel {
