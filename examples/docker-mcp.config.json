@@ -1,0 +1,24 @@
+{
+  "//": "Optional config file. Copy to the project root as docker-mcp.config.json,",
+  "//2": "or point DOCKER_MCP_CONFIG at it. Environment variables override these.",
+  "//author": "SoyRage Agency — https://soyrage.es/",
+
+  "readOnly": false,
+  "allowExec": false,
+  "containerAllowlist": [],
+  "defaultLogTail": 200,
+  "logLevel": "info",
+
+  "plugins": {
+    "//": "Leave 'enabled' empty to load all plugins, or list only the ones you want.",
+    "//names": "about (locked), containers, logs, images, system, compose, lifecycle",
+    "enabled": [],
+    "disabled": []
+  },
+
+  "panel": {
+    "host": "127.0.0.1",
+    "port": 4600,
+    "demo": false
+  }
+}
