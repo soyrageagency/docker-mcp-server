@@ -162,7 +162,10 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 ### Snapshots & scheduled backups — with email/cloud delivery
 <img src="./assets/screenshots/09-backups.png" alt="Docker Panel snapshots and scheduled backups by SoyRage Agency" width="90%">
 
-### File explorer — browse a container's filesystem
+### File explorer + editor — view & edit files inside a container
+<img src="./assets/screenshots/11-editor.png" alt="Docker Panel file editor by SoyRage Agency" width="90%">
+
+### Browse a container's filesystem
 <img src="./assets/screenshots/06-files.png" alt="Docker Panel file explorer by SoyRage Agency" width="90%">
 
 ### System — networks & volumes
@@ -182,8 +185,8 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 
 - **Tabbed layout** — *Overview*, *Terminal*, *Files*, *Backups*, *System* and *Alerts*, with a live alert badge in the header.
 - **Live monitoring** — CPU‑load and memory‑used cards with meters, plus per‑container CPU % and memory bars sampled from the Docker Engine.
-- **⌨️ Terminal with smart suggestions** — type `docker …` and get context‑aware completions (including your real container names) with one‑line explanations. **Tab** to complete, **↑/↓** to pick, **Enter** to run. Commands are parsed to an argv array and spawned **without a shell**; a deny‑list blocks dangerous verbs and write verbs respect read‑only mode.
-- **📁 File explorer** — browse any container's filesystem (breadcrumbs, up‑navigation) and open text files in the drawer. Safe, shell‑free `exec`; a fabricated tree in demo mode.
+- **⌨️ AI‑powered terminal** — type `docker …` for typo‑tolerant, context‑aware completions (**Tab**/**↑↓**/**Enter**), **or** type a request in plain English (*“why did web crash”*) and pick **Ask AI** — the copilot proposes a command you review, then run. Commands are parsed to an argv array and spawned **without a shell**; a deny‑list blocks dangerous verbs and write verbs respect read‑only mode. AI uses any OpenAI‑compatible endpoint (OpenAI, **Ollama**, LM Studio…); without one it falls back to rule‑based suggestions.
+- **📁 File explorer + editor** — browse any container's filesystem (breadcrumbs, up‑navigation), **open and edit** text/`.sh`/config files, and **Save** back into the container. An **AI edit** button rewrites the file from a plain‑English instruction. Safe, shell‑free `exec`; edits are blocked in read‑only mode.
 - **📸 Snapshots & scheduled backups** — snapshot a container as an image (`commit`) or a filesystem `export` (`.tar`) to a chosen directory; schedule a daily backup (time, containers, type); a **webhook** forwards each backup to **email, Google Drive or S3** via Zapier / Make / n8n.
 - **🧩 System tab** — networks and volumes at a glance; per‑container **inspect** details (env redacted, mounts, ports, restart policy) in the drawer.
 - **♻️ Auto‑restart watchdog** — flip the *Auto* toggle and a background watchdog restarts a container whenever it exits (respects read‑only mode).
@@ -193,7 +196,9 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 - **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos with no daemon.
 - **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
 
-**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/run` · `/api/files` · `/api/file` · `/api/inspect` · `/api/networks` · `/api/volumes` · `/api/backups` · `/api/backup` · `/api/schedule` · `/api/alerts` · `/api/autorestart` · `/metrics`.
+**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/run` · `/api/ai` · `/api/files` · `/api/file` (GET read / POST save) · `/api/inspect` · `/api/networks` · `/api/volumes` · `/api/backups` · `/api/backup` · `/api/schedule` · `/api/alerts` · `/api/autorestart` · `/metrics`.
+
+**AI copilot (optional):** set `DOCKER_MCP_AI_ENDPOINT` (+ `DOCKER_MCP_AI_KEY`, `DOCKER_MCP_AI_MODEL`) to power the AI terminal and AI file‑editing. Works with **OpenAI**, **Ollama** (`http://localhost:11434/v1`, free & local), **LM Studio**, or any OpenAI‑compatible API. Demo mode simulates it so you can try the UX offline.
 
 > 🖼️ Regenerate the screenshots yourself with `npm run shots` (requires `npx playwright install chromium`).
 
@@ -458,6 +463,9 @@ Every setting is an environment variable. A local **`.env`** file (next to `pack
 | `DOCKER_MCP_PANEL_TERMINAL` | `true` | Enable the in‑panel command terminal. |
 | `DOCKER_MCP_BACKUP_DIR` | `./snapshots` | Directory for container snapshots/exports. |
 | `DOCKER_MCP_BACKUP_WEBHOOK` | — | Webhook called after each backup (email/cloud bridge). |
+| `DOCKER_MCP_AI_ENDPOINT` | — | OpenAI‑compatible base URL for the AI copilot (empty = off). |
+| `DOCKER_MCP_AI_KEY` | — | Bearer key for the AI endpoint. |
+| `DOCKER_MCP_AI_MODEL` | `gpt-4o-mini` | Model name for the AI endpoint. |
 | `DOCKER_MCP_CONFIG` | `docker-mcp.config.json` | Path to the optional JSON config file. |
 
 **Boolean parsing:** any of `1`, `true`, `yes`, `on` (case‑insensitive) counts as true. A JSON **config file** provides defaults for all of the above — see [Config file](#config-file).

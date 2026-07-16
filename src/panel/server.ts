@@ -112,6 +112,7 @@ export function createPanelServer(
           readOnly: service.isReadOnly,
           terminal: config.panel.terminal,
           backupDir: config.panel.backupDir,
+          ai: service.aiEnabled,
         });
       }
 
@@ -167,11 +168,27 @@ export function createPanelServer(
         return sendJson(res, 200, await service.listFiles(name, dir));
       }
 
+      if (path === "/api/file" && req.method === "POST") {
+        const body = (await readBody(req)) as { name?: string; path?: string; content?: string };
+        if (!body.name || !body.path || typeof body.content !== "string") {
+          return sendJson(res, 400, { error: "Expected { name, path, content }." });
+        }
+        return sendJson(res, 200, await service.writeFile(body.name, body.path, body.content));
+      }
+
       if (path === "/api/file") {
         const name = url.searchParams.get("name") ?? "";
         const file = url.searchParams.get("path") ?? "";
         if (!name || !file) return sendJson(res, 400, { error: "Missing ?name= or ?path=" });
         return sendJson(res, 200, await service.readFile(name, file));
+      }
+
+      // ---- AI copilot ----------------------------------------------------
+      if (path === "/api/ai" && req.method === "POST") {
+        const body = (await readBody(req)) as { mode?: string; prompt?: string; context?: string };
+        if (!body.prompt) return sendJson(res, 400, { error: "Expected { mode, prompt, context? }." });
+        const mode = body.mode === "edit" ? "edit" : "command";
+        return sendJson(res, 200, await service.aiAssist(mode, body.prompt, body.context ?? ""));
       }
 
       // ---- Auto-restart --------------------------------------------------

@@ -23,6 +23,9 @@
     "metrics": true,
     "terminal": true,
     "backupDir": "./snapshots",
-    "backupWebhook": ""
+    "backupWebhook": "",
+    "aiEndpoint": "",
+    "aiKey": "",
+    "aiModel": "gpt-4o-mini"
   }
 }

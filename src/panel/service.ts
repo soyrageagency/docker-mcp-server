@@ -499,6 +499,114 @@ export class PanelService {
     return { path: clean, content: truncated ? out.slice(0, limit) : out, truncated };
   }
 
+  /**
+   * Write a text file inside a container (editor save). Blocked in read-only
+   * mode. Content is streamed to `sh -c 'cat > "$1"'` with the path passed as
+   * an argument (no shell interpolation of the path).
+   */
+  async writeFile(name: string, path: string, content: string): Promise<{ path: string; bytes: number }> {
+    if (this.config.readOnly) throw new Error("Server is read-only; saving is disabled.");
+    if (content.length > 256 * 1024) throw new Error("File too large to save from the panel (256 KB max).");
+    const clean = normalizePath(path);
+    if (this.demo) {
+      demoWrite(name, clean, content);
+      return { path: clean, bytes: Buffer.byteLength(content) };
+    }
+
+    const handle = await this.docker.resolveContainer(name);
+    const info = await handle.inspect();
+    if (!info.State.Running) throw new Error(`Container "${name}" is not running.`);
+
+    const exec = await handle.exec({
+      Cmd: ["sh", "-c", 'cat > "$1"', "sh", clean],
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+    const stream = await exec.start({ hijack: true, stdin: true });
+    await new Promise<void>((resolvePromise, rejectPromise) => {
+      stream.on("error", rejectPromise);
+      stream.on("end", () => resolvePromise());
+      stream.on("close", () => resolvePromise());
+      stream.end(Buffer.from(content, "utf8"));
+    });
+    const inspect = await exec.inspect();
+    if (inspect.ExitCode && inspect.ExitCode !== 0) {
+      throw new Error(`Save failed (exit ${inspect.ExitCode}). Is the path writable?`);
+    }
+    this.addAlert({ level: "info", source: name, rule: "edit", message: `Saved ${clean}` });
+    return { path: clean, bytes: Buffer.byteLength(content) };
+  }
+
+  /** Whether the AI copilot is available (demo simulates it). */
+  get aiEnabled(): boolean {
+    return this.demo || Boolean(this.config.panel.aiEndpoint);
+  }
+
+  /**
+   * AI copilot. `mode`:
+   *  - "command": natural language → a suggested docker command + explanation
+   *  - "edit":    rewrite file `context` per the `prompt` instruction
+   * Uses an OpenAI-compatible endpoint when configured; falls back to a helpful
+   * message (and a heuristic command) otherwise. Demo mode simulates it.
+   */
+  async aiAssist(
+    mode: "command" | "edit",
+    prompt: string,
+    context = "",
+  ): Promise<{ command?: string; explanation?: string; content?: string; text?: string; source: string }> {
+    if (this.demo) return demoAi(mode, prompt, context);
+
+    const endpoint = this.config.panel.aiEndpoint;
+    if (!endpoint) {
+      return {
+        source: "unconfigured",
+        text: "AI is not configured. Set DOCKER_MCP_AI_ENDPOINT / DOCKER_MCP_AI_KEY / DOCKER_MCP_AI_MODEL — works with OpenAI, Ollama, LM Studio or any OpenAI-compatible API.",
+        command: heuristicCommand(prompt),
+      };
+    }
+
+    const names = (await this.containers()).map((c) => c.name).join(", ");
+    const system =
+      mode === "edit"
+        ? "You are a careful text-file editor. Given a file and an instruction, return ONLY the full new file content — no explanations, no markdown code fences."
+        : `You are a Docker CLI copilot. The user describes what they want in plain language. Reply ONLY with a compact JSON object {"command":"<one safe docker command>","explanation":"<one short sentence>"}. Available containers: ${names}. Never invent destructive flags.`;
+    const user = mode === "edit" ? `Instruction: ${prompt}\n\n--- FILE ---\n${context}` : prompt;
+
+    const raw = await this.callLLM(endpoint, system, user);
+    if (mode === "edit") return { source: "ai", content: stripFences(raw) };
+    // command mode: try to parse the JSON object.
+    try {
+      const json = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+      return { source: "ai", command: String(json.command ?? ""), explanation: String(json.explanation ?? "") };
+    } catch {
+      return { source: "ai", text: raw };
+    }
+  }
+
+  /** Minimal OpenAI-compatible chat call. */
+  private async callLLM(endpoint: string, system: string, user: string): Promise<string> {
+    const url = endpoint.replace(/\/$/, "") + "/chat/completions";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.config.panel.aiKey ? { Authorization: `Bearer ${this.config.panel.aiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: this.config.panel.aiModel,
+        temperature: 0.1,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`AI endpoint returned ${res.status}`);
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    return data.choices?.[0]?.message?.content ?? "";
+  }
+
   /** Run a command inside a container and return its combined output. */
   private async exec(handle: Docker.Container, cmd: string[]): Promise<string> {
     const exec = await handle.exec({ Cmd: cmd, AttachStdout: true, AttachStderr: true });
@@ -1083,17 +1191,80 @@ function demoListDir(name: string, path: string): FileEntry[] {
     size: child.size ?? (child.type === "dir" ? 4096 : 0),
     target: child.target,
   }));
+  // Merge any overlay files (created/edited in demo mode) living in this dir.
+  for (const [key, content] of demoEdits) {
+    const [ovName, ovPath] = key.split("::");
+    if (ovName !== name || parentDir(ovPath) !== path) continue;
+    const base = baseName(ovPath);
+    const existing = entries.find((e) => e.name === base);
+    if (existing) existing.size = Buffer.byteLength(content);
+    else entries.push({ name: base, type: "file", size: Buffer.byteLength(content) });
+  }
   return entries.sort((a, b) =>
     a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1,
   );
 }
 
+/** In-memory overlay so demo-mode file edits persist within a session. */
+const demoEdits = new Map<string, string>();
+function demoWrite(name: string, path: string, content: string): void {
+  demoEdits.set(`${name}::${path}`, content);
+}
+
 function demoReadFile(name: string, path: string): string {
+  const overlaid = demoEdits.get(`${name}::${path}`);
+  if (overlaid !== undefined) return overlaid;
   const node = walk(name, path);
   if (!node) throw new Error(`cat: ${path}: No such file or directory`);
   if (node.type === "dir") throw new Error(`cat: ${path}: Is a directory`);
   if (node.type === "link") return `(symlink → ${node.target})\n`;
   return node.content ?? "";
+}
+
+/** Parent directory of a POSIX path. */
+function parentDir(p: string): string {
+  const i = p.lastIndexOf("/");
+  return i <= 0 ? "/" : p.slice(0, i);
+}
+function baseName(p: string): string {
+  return p.slice(p.lastIndexOf("/") + 1);
+}
+
+/** Strip markdown code fences an LLM may wrap content in. */
+function stripFences(text: string): string {
+  const fence = /^```[a-zA-Z]*\n([\s\S]*?)\n```$/m.exec(text.trim());
+  return fence ? fence[1] : text;
+}
+
+/** Best-effort natural-language → docker command (used as an AI fallback). */
+function heuristicCommand(prompt: string): string {
+  const p = prompt.toLowerCase();
+  const names = demoContainers().map((c) => c.name);
+  const target = names.find((n) => p.includes(n)) || "";
+  if (/\brestart|reboot\b/.test(p)) return `docker restart ${target || "<container>"}`;
+  if (/\bstop|halt|kill\b/.test(p)) return `docker stop ${target || "<container>"}`;
+  if (/\bstart|launch|run again\b/.test(p)) return `docker start ${target || "<container>"}`;
+  if (/\blog|crash|why|error\b/.test(p)) return `docker logs --tail 100 ${target || "<container>"}`;
+  if (/\bstat|cpu|memory|ram|usage|slow\b/.test(p)) return `docker stats${target ? " " + target : ""}`;
+  if (/\bimage/.test(p)) return "docker images";
+  if (/\bnetwork/.test(p)) return "docker network ls";
+  if (/\bvolume/.test(p)) return "docker volume ls";
+  if (/\bdisk|space/.test(p)) return "docker system df";
+  return "docker ps -a";
+}
+
+/** Simulated AI responses for demo mode. */
+function demoAi(mode: "command" | "edit", prompt: string, context: string) {
+  if (mode === "edit") {
+    const banner = `# Edited by the AI copilot (demo) — request: ${prompt.slice(0, 60)}\n`;
+    const body = context.startsWith("#") ? context : banner + context;
+    return { source: "demo-ai", content: body };
+  }
+  return {
+    source: "demo-ai",
+    command: heuristicCommand(prompt),
+    explanation: "Suggested from your request (demo AI). Configure DOCKER_MCP_AI_ENDPOINT for a real model.",
+  };
 }
 
 /** Fabricated `docker …` output for demo mode. */

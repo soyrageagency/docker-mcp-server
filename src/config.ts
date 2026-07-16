@@ -44,6 +44,9 @@ interface FileConfig {
     terminal?: boolean;
     backupDir?: string;
     backupWebhook?: string;
+    aiEndpoint?: string;
+    aiKey?: string;
+    aiModel?: string;
   };
 }
 
@@ -144,6 +147,12 @@ export interface PanelConfig {
   readonly backupDir: string;
   /** Optional webhook URL notified after a backup (route to email/Drive). */
   readonly backupWebhook: string;
+  /** Optional OpenAI-compatible endpoint powering the AI terminal/editor. */
+  readonly aiEndpoint: string;
+  /** API key for the AI endpoint (bearer). */
+  readonly aiKey: string;
+  /** Model name for the AI endpoint. */
+  readonly aiModel: string;
 }
 
 /** Fully-resolved, immutable server configuration. */
@@ -208,6 +217,9 @@ export function loadConfig(): AppConfig {
       terminal: envFlag("DOCKER_MCP_PANEL_TERMINAL", file.panel?.terminal ?? true),
       backupDir: envStr("DOCKER_MCP_BACKUP_DIR", file.panel?.backupDir ?? "./snapshots"),
       backupWebhook: envStr("DOCKER_MCP_BACKUP_WEBHOOK", file.panel?.backupWebhook ?? ""),
+      aiEndpoint: envStr("DOCKER_MCP_AI_ENDPOINT", file.panel?.aiEndpoint ?? ""),
+      aiKey: envStr("DOCKER_MCP_AI_KEY", file.panel?.aiKey ?? ""),
+      aiModel: envStr("DOCKER_MCP_AI_MODEL", file.panel?.aiModel ?? "gpt-4o-mini"),
     }),
   });
 }
