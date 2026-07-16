@@ -12,7 +12,14 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+
+/** Mirror the installer's per-OS Claude config path so the test is portable. */
+function claudeCfgPath(base) {
+  if (process.platform === "win32") return join(base, "Claude", "claude_desktop_config.json");
+  if (process.platform === "darwin") return join(base, "Library", "Application Support", "Claude", "claude_desktop_config.json");
+  return join(base, ".config", "Claude", "claude_desktop_config.json");
+}
 
 const results = [];
 let group = "";
@@ -74,6 +81,8 @@ async function main() {
   eq("snapshot counts consistent (running)", snap.system.containersRunning, snap.containers.filter((c) => c.state === "running").length);
   eq("snapshot counts consistent (total)", snap.system.containersTotal, snap.containers.length);
   ok("containers carry cpu/memory", snap.containers.some((c) => typeof c.cpu === "number"));
+  const hist = (await jget(BASE, "/api/history")).body;
+  ok("history returns time-series points", Array.isArray(hist?.points) && hist.points.length > 0 && typeof hist.points[0].cpu === "number");
 
   const conts = (await jget(BASE, "/api/containers")).body;
   ok("containers list non-empty", conts.length >= 6);
@@ -236,10 +245,11 @@ async function main() {
   ok("installer path is absolute dist/index.js", /dist[\\/]index\.js$/.test(parsed?.mcpServers?.docker?.args?.[0] || ""));
 
   const tmp = mkdtempSync(join(tmpdir(), "dmcp-"));
-  mkdirSync(join(tmp, "Claude"));
-  writeFileSync(join(tmp, "Claude", "claude_desktop_config.json"), JSON.stringify({ mcpServers: { other: { command: "x" } } }));
-  spawnSync("node", ["scripts/install.mjs"], { env: { ...process.env, APPDATA: tmp, HOME: tmp }, encoding: "utf8" });
-  const merged = JSON.parse(readFileSync(join(tmp, "Claude", "claude_desktop_config.json"), "utf8"));
+  const cfgPath = claudeCfgPath(tmp);
+  mkdirSync(dirname(cfgPath), { recursive: true });
+  writeFileSync(cfgPath, JSON.stringify({ mcpServers: { other: { command: "x" } } }));
+  spawnSync("node", ["scripts/install.mjs"], { env: { ...process.env, APPDATA: tmp, HOME: tmp, XDG_CONFIG_HOME: "" }, encoding: "utf8" });
+  const merged = JSON.parse(readFileSync(cfgPath, "utf8"));
   ok("installer preserves existing servers", merged.mcpServers.other?.command === "x");
   ok("installer adds docker server", merged.mcpServers.docker?.command === "node");
 

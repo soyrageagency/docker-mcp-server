@@ -43,6 +43,21 @@
       <!-- ============ OVERVIEW ============ -->
       <section id="tab-overview" class="tabpane">
         <div class="stats" id="stats" aria-label="Host statistics"></div>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Trends</h2><span class="muted">last ~2 min · sampled every 5s</span></div>
+          <div class="trend-grid">
+            <div class="trend">
+              <div class="trend-h"><span class="k">CPU load</span><span id="cpu-now" class="v mono">—</span></div>
+              <div id="chart-cpu" class="chart"></div>
+            </div>
+            <div class="trend">
+              <div class="trend-h"><span class="k">Memory used</span><span id="mem-now" class="v mono">—</span></div>
+              <div id="chart-mem" class="chart"></div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel-head">
             <h2>Containers</h2>

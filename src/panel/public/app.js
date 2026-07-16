@@ -112,6 +112,38 @@ function usageCell(level, label, pct) {
     <div class="meter ${tone}"><span style="width:${Math.min(100, pct).toFixed(1)}%"></span></div></div>`;
 }
 
+/** Render an inline SVG area sparkline (values are 0–100). */
+function renderChart(id, values, color) {
+  const el = $("#" + id);
+  if (!el) return;
+  const W = 320, H = 64, pad = 5;
+  if (!values.length) { el.innerHTML = '<div class="muted" style="padding:8px">collecting…</div>'; return; }
+  const step = values.length > 1 ? (W - 2 * pad) / (values.length - 1) : 0;
+  const y = (v) => H - pad - (Math.max(0, Math.min(100, v)) / 100) * (H - 2 * pad);
+  const pts = values.map((v, i) => [pad + i * step, y(v)]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = `${line} L ${(pad + (values.length - 1) * step).toFixed(1)} ${H - pad} L ${pad} ${H - pad} Z`;
+  el.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="spark">
+      <defs><linearGradient id="g-${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}" stop-opacity="0.35"/>
+        <stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#g-${id})"/>
+      <path d="${line}" fill="none" stroke="${color}" stroke-width="1.5"/>
+    </svg>`;
+}
+
+async function loadHistory() {
+  try {
+    const { points } = await api("/api/history");
+    renderChart("chart-cpu", points.map((p) => p.cpu), "#3b9ef0");
+    renderChart("chart-mem", points.map((p) => p.mem), "#3ad07f");
+    const last = points[points.length - 1] || {};
+    $("#cpu-now").textContent = `${(last.cpu ?? 0).toFixed(1)} %`;
+    $("#mem-now").textContent = bytes(last.memBytes || 0);
+  } catch { /* best effort */ }
+}
+
 function renderStats(snap) {
   const sys = snap.system;
   const memPct = sys.memoryBytes ? (snap.memoryUsed / sys.memoryBytes) * 100 : 0;
@@ -691,6 +723,7 @@ async function refresh() {
   renderStats(snap);
   renderContainers(snap.containers);
   renderImages(snap.images);
+  loadHistory();
   // Keep the alert badge fresh without visiting the tab.
   api("/api/alerts").then(({ alerts }) => updateAlertBadge(alerts)).catch(() => {});
 }

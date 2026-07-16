@@ -14,6 +14,7 @@
 
 <br/>
 
+[![CI](https://github.com/soyrageagency/docker-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/soyrageagency/docker-mcp-server/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/Node-%3E%3D18-3c873a?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.x-6E56CF)](https://modelcontextprotocol.io)
@@ -184,7 +185,7 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 **Panel highlights**
 
 - **Tabbed layout** — *Overview*, *Terminal*, *Files*, *Backups*, *System* and *Alerts*, with a live alert badge in the header.
-- **Live monitoring** — CPU‑load and memory‑used cards with meters, plus per‑container CPU % and memory bars sampled from the Docker Engine.
+- **Live monitoring + Trends** — CPU‑load and memory‑used cards with meters, per‑container CPU % and memory bars, and **historical sparkline charts** (sampled every 5s) for CPU and memory over time.
 - **⌨️ AI‑powered terminal** — type `docker …` for typo‑tolerant, context‑aware completions (**Tab**/**↑↓**/**Enter**), **or** type a request in plain English (*“why did web crash”*) and pick **Ask AI** — the copilot proposes a command you review, then run. Commands are parsed to an argv array and spawned **without a shell**; a deny‑list blocks dangerous verbs and write verbs respect read‑only mode. AI uses any OpenAI‑compatible endpoint (OpenAI, **Ollama**, LM Studio…); without one it falls back to rule‑based suggestions.
 - **📁 File explorer + editor** — browse any container's filesystem (breadcrumbs, up‑navigation), **open and edit** text/`.sh`/config files, and **Save** back into the container. An **AI edit** button rewrites the file from a plain‑English instruction. Safe, shell‑free `exec`; edits are blocked in read‑only mode.
 - **📸 Snapshots & scheduled backups** — snapshot a container as an image (`commit`) or a filesystem `export` (`.tar`) to a chosen directory; schedule a daily backup (time, containers, type); a **webhook** forwards each backup to **email, Google Drive or S3** via Zapier / Make / n8n.
@@ -196,7 +197,7 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 - **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos with no daemon.
 - **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
 
-**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/run` · `/api/ai` · `/api/files` · `/api/file` (GET read / POST save) · `/api/inspect` · `/api/networks` · `/api/volumes` · `/api/backups` · `/api/backup` · `/api/schedule` · `/api/alerts` · `/api/autorestart` · `/metrics`.
+**Panel REST API** (all local): `/api/snapshot` · `/api/history` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/run` · `/api/ai` · `/api/files` · `/api/file` (GET read / POST save) · `/api/inspect` · `/api/networks` · `/api/volumes` · `/api/backups` · `/api/backup` · `/api/schedule` · `/api/alerts` · `/api/autorestart` · `/metrics`.
 
 **AI copilot (optional):** set `DOCKER_MCP_AI_ENDPOINT` (+ `DOCKER_MCP_AI_KEY`, `DOCKER_MCP_AI_MODEL`) to power the AI terminal and AI file‑editing. Works with **OpenAI**, **Ollama** (`http://localhost:11434/v1`, free & local), **LM Studio**, or any OpenAI‑compatible API. Demo mode simulates it so you can try the UX offline.
 
@@ -682,6 +683,14 @@ npm run clean      # remove dist/
 
 **Coding standards:** TypeScript `strict` with `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns` and `noFallthroughCasesInSwitch`. Every source file carries a SoyRage Agency attribution header.
 
+**Continuous integration:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push/PR — install, type‑check, build, then the **deep end‑to‑end suite** (`node scripts/deep-test.mjs`, **70 checks**) against a headless demo panel. Run it locally anytime:
+
+```bash
+npm run build
+DOCKER_MCP_PANEL_DEMO=true DOCKER_MCP_PANEL_PORT=4600 node dist/panel/index.js &
+node scripts/deep-test.mjs
+```
+
 ---
 
 ## 🩺 Troubleshooting & FAQ
@@ -725,14 +734,16 @@ No. This server talks only to your Docker daemon and your MCP client over local 
 
 ## 🗺️ Roadmap
 
-- [x] Interactive web panel with live monitoring
+- [x] Interactive web panel with live monitoring + historical charts
 - [x] Creative terminal UI (TUI)
 - [x] Prometheus `/metrics` endpoint (Prometheus/Zabbix ready)
+- [x] AI‑powered terminal & file editing (OpenAI‑compatible)
+- [x] One‑command installer + CI (build/typecheck/70‑check e2e)
 - [ ] `follow_logs` streaming with server‑sent progress
 - [ ] Image pull/build tools with progress reporting
 - [ ] Prune tools (`docker system prune`) gated behind explicit confirmation
 - [ ] MCP **resources** for read‑only container/stack snapshots
-- [ ] Historical metrics retention & built‑in charts
+- [ ] Native SMTP + direct S3/Drive backup destinations
 - [ ] Published npm package for one‑line `npx` usage
 
 Ideas and PRs welcome — see below.
