@@ -99,7 +99,7 @@ Built by **[SoyRage Agency](https://soyrage.es/)** for the self‑hosting and ho
 | 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec** · soft attribution guard. |
 | 🔌 **Transport** | Local Unix socket · Windows named pipe · secured remote **TCP + TLS**. |
 | 🎨 **Identity** | ASCII welcome banner · `about` tool · MCP `instructions` that credit **SoyRage Agency** to the AI on connect. |
-| 🖥️ **Interactive panel** | Minimalist web dashboard with live CPU/memory monitoring, container/image browsing, log tailing and lifecycle actions — with a demo mode. |
+| 🖥️ **Interactive panel** | Tabbed web dashboard: live CPU/memory monitoring, container/image browsing, **file explorer**, **auto‑restart watchdog**, **alerts & log watch**, log tailing, search and lifecycle actions — with a demo mode. |
 | ⌨️ **Terminal UI** | A creative, lazydocker‑style TUI with a SoyRage welcome, live gauges and one‑key actions — zero curses dependencies. |
 | 📈 **Monitoring** | Built‑in **Prometheus `/metrics`** endpoint — scrape it from Prometheus, Grafana, Zabbix, VictoriaMetrics, … |
 | 🧩 **Modular** | Every capability is a toggleable **plugin**; enable exactly the surface you want via config. |
@@ -125,6 +125,12 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 ### One‑click log tailing
 <img src="./assets/screenshots/02-logs.png" alt="Docker Panel log drawer by SoyRage Agency" width="90%">
 
+### File explorer — browse a container's filesystem
+<img src="./assets/screenshots/06-files.png" alt="Docker Panel file explorer by SoyRage Agency" width="90%">
+
+### Alerts & log watch — with a live auto‑restart watchdog
+<img src="./assets/screenshots/07-alerts.png" alt="Docker Panel alerts and auto-restart by SoyRage Agency" width="90%">
+
 ### Read‑only mode — actions safely disabled
 <img src="./assets/screenshots/03-readonly.png" alt="Docker Panel read-only mode by SoyRage Agency" width="90%">
 
@@ -134,13 +140,19 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 
 **Panel highlights**
 
+- **Tabbed layout** — *Overview*, *Files* and *Alerts*, with a live alert badge in the header.
 - **Live monitoring** — CPU‑load and memory‑used cards with meters, plus per‑container CPU % and memory bars sampled from the Docker Engine.
-- **Container grid** — colour‑coded state dots, images, ports as chips, and start/stop/restart actions.
+- **Container grid** — colour‑coded state dots, images, ports as chips, **filter/search**, an **auto‑refresh** toggle, and start/stop/restart actions.
+- **📁 File explorer** — browse any container's filesystem (breadcrumbs, up‑navigation) and open text files in the drawer. Backed by a safe, shell‑free `exec`; a fabricated tree in demo mode.
+- **♻️ Auto‑restart watchdog** — flip the *Auto* toggle on a container and a background watchdog restarts it whenever it exits (respects read‑only mode).
+- **🚨 Alerts & log watch** — surfaces down/unhealthy containers, high CPU/memory, watchdog interventions, and **error/warn lines scanned from recent logs**.
 - **Log drawer** — click any container name to tail its output.
-- **Prometheus `/metrics`** — a footer link exposes the scrape endpoint (see [Monitoring](#-monitoring-prometheus-zabbix--more)).
+- **Prometheus `/metrics`** — footer link exposes the scrape endpoint (see [Monitoring](#-monitoring-prometheus-zabbix--more)).
 - **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos on a machine with no daemon.
 - **Local‑only by default** — binds to `127.0.0.1`; expose deliberately if you must.
 - **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
+
+**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/files` · `/api/file` · `/api/alerts` · `/api/autorestart` · `/metrics`.
 
 > 🖼️ Regenerate the screenshots yourself with `npm run shots` (requires `npx playwright install chromium`).
 
@@ -194,6 +206,9 @@ curl http://127.0.0.1:4600/metrics
 | `dockermcp_container_running{…}` | gauge | 1 if a given container is running. |
 | `dockermcp_container_cpu_percent{…}` | gauge | Per‑container CPU %. |
 | `dockermcp_container_memory_bytes{…}` | gauge | Per‑container memory. |
+| `dockermcp_container_autorestart{…}` | gauge | 1 if auto‑restart is enabled for it. |
+| `dockermcp_autorestart_enabled` | gauge | Count of containers with auto‑restart on. |
+| `dockermcp_alerts_active` | gauge | Number of active state‑based alerts. |
 
 ### Prometheus
 
