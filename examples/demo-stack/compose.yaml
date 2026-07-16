@@ -1,0 +1,24 @@
+# A tiny two-service stack you can use to try the Compose tools end-to-end.
+# Ask your assistant: "Deploy the stack in examples/demo-stack, then show me
+# its services and the web logs."
+#
+# Crafted by SoyRage Agency — https://soyrage.es/
+
+services:
+  web:
+    image: nginx:alpine
+    container_name: demo-web
+    ports:
+      - "8088:80"
+    restart: unless-stopped
+
+  cache:
+    image: redis:7-alpine
+    container_name: demo-cache
+    command: ["redis-server", "--save", "60", "1"]
+    restart: unless-stopped
+    volumes:
+      - demo-cache-data:/data
+
+volumes:
+  demo-cache-data:

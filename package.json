@@ -1,0 +1,52 @@
+{
+  "name": "docker-mcp-server",
+  "version": "1.0.0",
+  "description": "Chat with your Docker host. A Model Context Protocol (MCP) server that lets any LLM list containers, read logs, manage lifecycle and deploy Compose stacks — safely. Built by SoyRage Agency.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "SoyRage Agency (https://soyrage.es/)",
+  "homepage": "https://soyrage.es/",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "docker",
+    "docker-compose",
+    "devops",
+    "llm",
+    "ai",
+    "claude",
+    "self-hosted",
+    "containers"
+  ],
+  "bin": {
+    "docker-mcp-server": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dockerode": "^4.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.31",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

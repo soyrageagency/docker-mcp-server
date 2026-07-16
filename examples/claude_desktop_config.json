@@ -1,0 +1,16 @@
+{
+  "//": "Add this block to your Claude Desktop config (or any MCP client).",
+  "//path_macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+  "//path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+  "mcpServers": {
+    "docker": {
+      "command": "node",
+      "args": ["D:/Projects/MCP Docker/dist/index.js"],
+      "env": {
+        "DOCKER_MCP_READONLY": "false",
+        "DOCKER_MCP_ALLOW_EXEC": "false",
+        "DOCKER_MCP_DEFAULT_LOG_TAIL": "200"
+      }
+    }
+  }
+}
