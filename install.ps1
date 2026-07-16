@@ -15,7 +15,7 @@ $Repo = "https://github.com/soyrageagency/docker-mcp-server.git"
 $Dir  = if ($env:DOCKER_MCP_DIR) { $env:DOCKER_MCP_DIR } else { Join-Path $HOME "docker-mcp-server" }
 
 Write-Host ""
-Write-Host "  🐳 Docker MCP Server - installer by SoyRage Agency" -ForegroundColor Cyan
+Write-Host "  Docker MCP Server - installer by SoyRage Agency" -ForegroundColor Cyan
 Write-Host "     https://soyrage.es/" -ForegroundColor DarkGray
 Write-Host ""
 

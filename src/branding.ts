@@ -55,8 +55,8 @@ export function welcomeBlock(): string {
     ASCII_BANNER,
     `  ${BRAND.product} v${BRAND.version}`,
     `  Crafted with care by ${BRAND.author} — ${BRAND.url}`,
-    "  Licensed under the SoyRage Attribution License. Keep the credit. ❤",
-    `  ☕ Support the project: ${BRAND.donate}`,
+    "  Licensed under the SoyRage Attribution License. Keep the credit.",
+    `  Support the project: ${BRAND.donate}`,
     "",
   ].join("\n");
 }

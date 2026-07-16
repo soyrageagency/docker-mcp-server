@@ -228,14 +228,14 @@ export class TuiApp {
       center(color.bold(`Welcome to ${BRAND.product}`), cols),
       center(color.gray(`by ${BRAND.author} · ${BRAND.url}`), cols),
       "",
-      center("Thank you for using our repository! 🙌", cols),
+      center("Thank you for using our repository.", cols),
       center(
         `${color.yellow("★")} If it's useful, please leave a ${color.yellow(
           "star",
         )} and share it.`,
         cols,
       ),
-      center(`${color.yellow("☕")} Support the project: ${color.brightBlue(BRAND.donate)}`, cols),
+      center(`${color.gray("Support the project:")} ${color.brightBlue(BRAND.donate)}`, cols),
       "",
       center(color.dim("Press any key to launch the dashboard…"), cols),
     ];
@@ -389,7 +389,7 @@ export class TuiApp {
   }
 
   private footerBrand(cols: number): string {
-    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)} ${color.dim("·")} ${color.yellow("★")} star us ${color.dim("·")} ${color.yellow("☕")} ${color.brightBlue(BRAND.donate)}`;
+    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)} ${color.dim("·")} ${color.yellow("★")} star us ${color.dim("·")} ${color.dim("support")} ${color.brightBlue(BRAND.donate)}`;
     return " " + text + " ".repeat(Math.max(0, cols - 2 - stripLen(text)));
   }
 }
