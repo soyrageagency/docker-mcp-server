@@ -103,6 +103,16 @@ select.input { cursor: pointer; }
 /* Scroll lock (drawer bugfix) */
 body.locked { overflow: hidden; }
 
+/* Inline SVG icons (Lucide) — professional, no emojis */
+.ico { width: 15px; height: 15px; display: inline-block; vertical-align: -3px; flex: none; }
+.ghost .ico, .primary .ico { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+.act .ico { width: 15px; height: 15px; }
+.toggle .ico { width: 15px; height: 15px; }
+.fic { width: 34px; color: var(--muted); }
+.grid td.dir + td, .name.dir { color: var(--accent); }
+.prompt { display: inline-flex; align-items: center; }
+.prompt .ico { width: 14px; height: 14px; color: var(--accent); vertical-align: middle; }
+
 /* Buttons & forms */
 .primary {
   background: linear-gradient(180deg, #3fa4f5, var(--accent)); color: #fff; border: none;

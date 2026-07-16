@@ -11,7 +11,7 @@
  *   node scripts/install.mjs --client claude # (same)
  *   node scripts/install.mjs --print         # just print the JSON snippet
  *
- * Crafted by SoyRage Agency — https://soyrage.es/  ·  ☕ https://www.paypal.com/paypalme/soyrageagency
+ * Crafted by SoyRage Agency — https://soyrage.es/  ·  https://www.paypal.com/paypalme/soyrageagency
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
@@ -101,7 +101,7 @@ say("");
 say(`  ${c.dim}Optional visual dashboard:${c.reset} ${c.bold}npm run panel${c.reset}  →  http://127.0.0.1:4600`);
 say(`  ${c.dim}Terminal UI:${c.reset}              ${c.bold}npm run tui${c.reset}`);
 say("");
-say(`  ${c.yellow}☕ Enjoying it?${c.reset} Support development: ${c.blue}https://www.paypal.com/paypalme/soyrageagency${c.reset}`);
+say(`  ${c.yellow}Enjoying it?${c.reset} Support development: ${c.blue}https://www.paypal.com/paypalme/soyrageagency${c.reset}`);
 say(`  ${c.yellow}★${c.reset} And a star helps a lot: ${c.blue}https://github.com/soyrageagency/docker-mcp-server${c.reset}`);
 say("");
 

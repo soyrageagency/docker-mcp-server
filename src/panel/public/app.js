@@ -9,6 +9,34 @@
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+/* ------------------------------------------------- icons (Lucide, inline) */
+// Professional SVG icons embedded inline — no emojis, no external requests.
+// Paths are from Lucide (https://lucide.dev, ISC license).
+const ICONS = {
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
+  restart: '<path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  chevron: '<path d="m9 18 6-6-6-6"/>',
+  coffee: '<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/>',
+};
+const FILLED = new Set(["play", "stop"]);
+function icon(name) {
+  const g = ICONS[name];
+  if (!g) return "";
+  const attrs = FILLED.has(name)
+    ? 'fill="currentColor" stroke="none"'
+    : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  return `<svg class="ico" viewBox="0 0 24 24" ${attrs} aria-hidden="true">${g}</svg>`;
+}
+
 const state = {
   meta: { demo: false, readOnly: false },
   autoRestart: new Set(),
@@ -129,16 +157,16 @@ function renderContainers(list) {
           <td>${mem}</td>
           <td>${ports}</td>
           <td class="center">
-            <button class="toggle ${on ? "on" : ""}" data-auto="${escapeHtml(c.name)}" title="Auto-restart">⟳</button>
+            <button class="toggle ${on ? "on" : ""}" data-auto="${escapeHtml(c.name)}" title="Auto-restart">${icon("restart")}</button>
           </td>
           <td>
             <div class="actions">
-              <button class="act" title="Details" data-details="${escapeHtml(c.name)}">ⓘ</button>
-              <button class="act" title="Files" data-files="${escapeHtml(c.name)}">🗀</button>
-              <button class="act" title="Snapshot" data-snap="${escapeHtml(c.name)}">📸</button>
-              <button class="act" title="Start" data-act="start" data-name="${escapeHtml(c.name)}" ${disabled}>▶</button>
-              <button class="act" title="Stop" data-act="stop" data-name="${escapeHtml(c.name)}" ${disabled}>■</button>
-              <button class="act" title="Restart" data-act="restart" data-name="${escapeHtml(c.name)}" ${disabled}>⟳</button>
+              <button class="act" title="Details" data-details="${escapeHtml(c.name)}">${icon("info")}</button>
+              <button class="act" title="Files" data-files="${escapeHtml(c.name)}">${icon("folder")}</button>
+              <button class="act" title="Snapshot" data-snap="${escapeHtml(c.name)}">${icon("camera")}</button>
+              <button class="act" title="Start" data-act="start" data-name="${escapeHtml(c.name)}" ${disabled}>${icon("play")}</button>
+              <button class="act" title="Stop" data-act="stop" data-name="${escapeHtml(c.name)}" ${disabled}>${icon("stop")}</button>
+              <button class="act" title="Restart" data-act="restart" data-name="${escapeHtml(c.name)}" ${disabled}>${icon("restart")}</button>
             </div>
           </td>
         </tr>`;
@@ -221,10 +249,10 @@ async function loadDir() {
     const { entries } = await api(`/api/files?name=${encodeURIComponent(name)}&path=${encodeURIComponent(path)}`);
     $("#fs-list").innerHTML = entries
       .map((e) => {
-        const icon = e.type === "dir" ? "🗀" : e.type === "link" ? "🔗" : "🗎";
+        const ic = e.type === "dir" ? icon("folder") : e.type === "link" ? icon("link") : icon("file");
         const nm = e.type === "link" && e.target ? `${escapeHtml(e.name)} <span class="muted">→ ${escapeHtml(e.target)}</span>` : escapeHtml(e.name);
         const cls = e.type === "dir" ? "clickable dir" : e.type === "file" ? "clickable file" : "";
-        return `<tr><td>${icon}</td><td class="name ${cls}" data-type="${e.type}" data-name="${escapeHtml(e.name)}">${nm}</td><td class="right mono">${e.type === "file" ? bytes(e.size) : "—"}</td></tr>`;
+        return `<tr><td class="fic">${ic}</td><td class="name ${cls}" data-type="${e.type}" data-name="${escapeHtml(e.name)}">${nm}</td><td class="right mono">${e.type === "file" ? bytes(e.size) : "—"}</td></tr>`;
       })
       .join("") || '<tr><td colspan="3" class="muted">(empty)</td></tr>';
 
@@ -467,7 +495,7 @@ async function runTerm() {
   const cmd = input.value.trim();
   if (!cmd) return;
   const out = $("#term-out");
-  out.insertAdjacentHTML("beforeend", `<div class="to-cmd"><span class="prompt">❯</span> ${escapeHtml(cmd)}</div>`);
+  out.insertAdjacentHTML("beforeend", `<div class="to-cmd"><span class="prompt">${icon("chevron")}</span> ${escapeHtml(cmd)}</div>`);
   input.value = ""; term.open = false; renderSuggestions();
   try {
     const r = await api("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command: cmd }) });
@@ -606,6 +634,17 @@ async function init() {
     if (state.meta.readOnly) $("#badge-ro").classList.remove("hidden");
     document.title = `Docker Panel · ${state.meta.author || "SoyRage Agency"}`;
   } catch { /* best effort */ }
+
+  // Swap glyphs for professional inline SVG icons.
+  const setIcon = (sel, name, label) => { const el = $(sel); if (el) el.innerHTML = icon(name) + (label ? " " + label : ""); };
+  setIcon("#refresh", "refresh", "Refresh");
+  setIcon("#alerts-refresh", "refresh", "Refresh");
+  setIcon("#bk-refresh", "refresh", "Refresh");
+  setIcon("#bk-create", "camera", "Snapshot now");
+  setIcon("#fs-up", "up", "Up");
+  setIcon("#drawer-close", "x");
+  const dn = $(".donate"); if (dn) dn.innerHTML = icon("coffee") + " Support";
+  $$(".prompt").forEach((el) => (el.innerHTML = icon("chevron")));
 
   $$(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
   if (state.meta.terminal === false) $('.tab[data-tab="terminal"]').classList.add("hidden");

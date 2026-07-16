@@ -16,7 +16,7 @@ REPO="https://github.com/soyrageagency/docker-mcp-server.git"
 DIR="${DOCKER_MCP_DIR:-$HOME/docker-mcp-server}"
 
 echo ""
-echo "  🐳 Docker MCP Server — installer by SoyRage Agency"
+echo "  Docker MCP Server — installer by SoyRage Agency"
 echo "     https://soyrage.es/"
 echo ""
 
