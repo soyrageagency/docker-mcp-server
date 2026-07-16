@@ -19,22 +19,28 @@
     "containers"
   ],
   "bin": {
-    "docker-mcp-server": "dist/index.js"
+    "docker-mcp-server": "dist/index.js",
+    "docker-mcp-panel": "dist/panel/index.js"
   },
   "main": "dist/index.js",
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-public.mjs",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "panel": "node dist/panel/index.js",
+    "panel:dev": "tsx watch src/panel/index.ts",
+    "panel:demo": "node -e \"process.env.DOCKER_MCP_PANEL_DEMO='true';import('./dist/panel/index.js')\"",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "shots": "node scripts/shots.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
@@ -46,6 +52,7 @@
   "devDependencies": {
     "@types/dockerode": "^3.3.31",
     "@types/node": "^20.14.0",
+    "playwright": "^1.61.1",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"
   }

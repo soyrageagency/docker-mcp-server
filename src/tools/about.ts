@@ -16,7 +16,31 @@ import type { ToolContext } from "./context.js";
 import { BRAND, welcomeBlock } from "../branding.js";
 import { guard, ok } from "../utils/result.js";
 
-export function registerAboutTool({ server, config }: ToolContext): void {
+export function registerAboutTool({ server, config, plugins }: ToolContext): void {
+  server.registerTool(
+    "list_plugins",
+    {
+      title: "List plugins",
+      description:
+        "Show the modular capability plugins this server exposes and whether " +
+        "each is currently enabled. Handy to understand what the AI can do.",
+      inputSchema: {},
+    },
+    async () =>
+      guard(async () => {
+        if (plugins.length === 0) return ok("No plugin metadata available.");
+        const lines = plugins.map((p) => {
+          const mark = p.enabled ? "✓" : "✗";
+          const kind = p.mutating ? "write" : "read";
+          return `${mark} ${p.name.padEnd(11)} [${p.category}/${kind}] — ${p.title}`;
+        });
+        const on = plugins.filter((p) => p.enabled).length;
+        return ok(
+          `${on}/${plugins.length} plugin(s) enabled:\n\n${lines.join("\n")}`,
+        );
+      }),
+  );
+
   server.registerTool(
     "about",
     {

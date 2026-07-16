@@ -40,6 +40,8 @@
 - [What is this?](#-what-is-this)
 - [Why it exists](#-why-it-exists)
 - [Feature overview](#-feature-overview)
+- [The interactive panel](#-the-interactive-panel)
+- [Modular plugin architecture](#-modular-plugin-architecture)
 - [How it works](#-how-it-works)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
@@ -104,7 +106,93 @@ Built by **[SoyRage Agency](https://soyrage.es/)** for the self‑hosting and ho
 | 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec** · soft attribution guard. |
 | 🔌 **Transport** | Local Unix socket · Windows named pipe · secured remote **TCP + TLS**. |
 | 🎨 **Identity** | ASCII welcome banner · `about` tool · MCP `instructions` that credit **SoyRage Agency** to the AI on connect. |
+| 🖥️ **Interactive panel** | Minimalist web dashboard to view stats, browse containers/images, tail logs and run lifecycle actions — with a demo mode. |
+| 🧩 **Modular** | Every capability is a toggleable **plugin**; enable exactly the surface you want via config. |
 | 🧱 **Engineering** | 100% TypeScript, strict mode · one module per concern · tiny dependency surface · stderr‑only logging. |
+
+---
+
+## 🖥️ The interactive panel
+
+Beyond the conversational interface, the project ships a **minimalist web dashboard** (`docker-mcp-panel`) for when you want a fast, visual, point‑and‑click view of your host. It reuses the exact same configuration, Docker client and safety rails as the MCP server — so **read‑only mode** and the **allowlist** apply here too.
+
+```bash
+npm run build
+npm run panel          # → http://127.0.0.1:4600
+npm run panel:demo     # same, but with realistic mock data (no daemon needed)
+```
+
+<div align="center">
+
+### Dashboard — live host stats, containers & images
+<img src="./assets/screenshots/01-dashboard.png" alt="Docker Panel dashboard by SoyRage Agency" width="90%">
+
+### One‑click log tailing
+<img src="./assets/screenshots/02-logs.png" alt="Docker Panel log drawer by SoyRage Agency" width="90%">
+
+### Read‑only mode — actions safely disabled
+<img src="./assets/screenshots/03-readonly.png" alt="Docker Panel read-only mode by SoyRage Agency" width="90%">
+
+<sub>Screenshots rendered in <b>demo mode</b> · watermarked © SoyRage Agency · soyrage.es</sub>
+
+</div>
+
+**Panel highlights**
+
+- **Live stat cards** — running/total containers, images, vCPUs, memory.
+- **Container grid** — colour‑coded state dots, images, ports as chips, and start/stop/restart actions.
+- **Log drawer** — click any container name to tail its output.
+- **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data, perfect for previews and client demos on a machine with no daemon.
+- **Local‑only by default** — binds to `127.0.0.1`; expose deliberately if you must.
+- **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
+
+> 🖼️ Regenerate the screenshots yourself with `npm run shots` (requires `npx playwright install chromium`).
+
+---
+
+## 🧩 Modular plugin architecture
+
+The server is assembled from independent **plugins**, each owning one capability group. Which plugins load is driven entirely by configuration, so you can expose exactly the surface you want — from *insight only* to the full toolbox — **without touching code**. This also makes the project easy to extend and hard to fork wholesale without noticing the attribution baked into the locked `about` plugin.
+
+| Plugin | Category | Type | Tools |
+| --- | --- | --- | --- |
+| `about` 🔒 | identity | read | `about`, `list_plugins` |
+| `containers` | insight | read | `list_containers`, `inspect_container`, `container_stats` |
+| `logs` | insight | read | `container_logs` |
+| `images` | insight | read | `list_images` |
+| `system` | system | read | `system_info`, `disk_usage`, `list_networks`, `list_volumes` |
+| `compose` | compose | read/write | `compose_ps`, `compose_config`, `deploy_stack`, `compose_down`, `compose_restart`, `compose_pull` |
+| `lifecycle` | lifecycle | write | `start`/`stop`/`restart`/`remove_container`, `exec_in_container` |
+
+<sub>🔒 The `about` plugin is **locked** — it carries the SoyRage Agency identity and cannot be disabled.</sub>
+
+**Toggle plugins** via environment variables or the config file:
+
+```bash
+# Expose ONLY read-only insight (a safe, curated surface)
+DOCKER_MCP_PLUGINS=containers,logs,images,system
+
+# Load everything except container lifecycle
+DOCKER_MCP_DISABLED_PLUGINS=lifecycle
+```
+
+Ask the assistant **“list the plugins”** any time to see what’s enabled.
+
+### Config file
+
+For a reproducible setup, drop a **`docker-mcp.config.json`** in the project root (or point `DOCKER_MCP_CONFIG` at one). Environment variables always override it. See [`examples/docker-mcp.config.json`](./examples/docker-mcp.config.json):
+
+```json
+{
+  "readOnly": false,
+  "allowExec": false,
+  "containerAllowlist": ["web", "api"],
+  "plugins": { "enabled": [], "disabled": ["lifecycle"] },
+  "panel": { "host": "127.0.0.1", "port": 4600, "demo": false }
+}
+```
+
+**Configuration precedence** (lowest → highest): built‑in defaults → `docker-mcp.config.json` → `.env` → real environment variables.
 
 ---
 
@@ -222,8 +310,14 @@ Every setting is an environment variable. A local **`.env`** file (next to `pack
 | `DOCKER_MCP_DEFAULT_LOG_TAIL` | `200` | Default number of log lines returned by `container_logs` when `tail` is omitted. |
 | `DOCKER_MCP_COMPOSE_CWD` | process cwd | Base directory used to resolve **relative** Compose file paths. |
 | `DOCKER_MCP_LOG_LEVEL` | `info` | Diagnostic verbosity written to stderr: `debug` \| `info` \| `warn` \| `error`. |
+| `DOCKER_MCP_PLUGINS` | — | Load **only** these plugins (comma‑separated). Empty = all. |
+| `DOCKER_MCP_DISABLED_PLUGINS` | — | Disable these plugins (comma‑separated). `about` is locked. |
+| `DOCKER_MCP_PANEL_HOST` | `127.0.0.1` | Bind address for the interactive panel. |
+| `DOCKER_MCP_PANEL_PORT` | `4600` | Port for the interactive panel. |
+| `DOCKER_MCP_PANEL_DEMO` | `false` | Serve fabricated demo data in the panel. |
+| `DOCKER_MCP_CONFIG` | `docker-mcp.config.json` | Path to the optional JSON config file. |
 
-**Boolean parsing:** any of `1`, `true`, `yes`, `on` (case‑insensitive) counts as true.
+**Boolean parsing:** any of `1`, `true`, `yes`, `on` (case‑insensitive) counts as true. A JSON **config file** provides defaults for all of the above — see [Config file](#config-file).
 
 ---
 
@@ -284,6 +378,7 @@ Tools marked **W** change state and are **hidden** when `DOCKER_MCP_READONLY=tru
 | Tool | Parameters | Description |
 | --- | --- | --- |
 | `about` | — | Returns the SoyRage Agency welcome banner, credits and license. The assistant uses it to introduce the server. |
+| `list_plugins` | — | Lists the modular capability plugins and whether each is enabled. |
 
 ### Insight (read‑only)
 
@@ -353,32 +448,43 @@ Want a stack to practise on? [`examples/demo-stack/compose.yaml`](./examples/dem
 ```
 docker-mcp-server/
 ├── assets/
-│   └── soyrage-banner.svg    # SoyRage Agency identity banner (this README)
+│   ├── soyrage-banner.svg    # SoyRage Agency identity banner (this README)
+│   └── screenshots/          # Watermarked panel screenshots
 ├── examples/
 │   ├── claude_desktop_config.json
+│   ├── docker-mcp.config.json  # Reproducible config-file example
 │   └── demo-stack/
 │       └── compose.yaml      # nginx + redis playground
+├── scripts/
+│   ├── copy-public.mjs       # Copies panel assets into dist/ after build
+│   └── shots.mjs             # Regenerates the panel screenshots (Playwright)
 ├── src/
-│   ├── index.ts              # Entry point: banner, attribution guard, wiring
+│   ├── index.ts              # MCP entry point: banner, attribution guard, wiring
 │   ├── branding.ts           # SoyRage identity, ASCII banner, MCP instructions
-│   ├── config.ts             # Env‑driven, validated configuration + .env loader
+│   ├── plugins.ts            # Modular plugin catalogue & selection loader
+│   ├── config.ts             # Layered config (defaults → file → .env → env)
 │   ├── logger.ts             # stderr‑only structured logger (stdout is sacred)
 │   ├── docker/
 │   │   ├── client.ts         # Typed dockerode wrapper + allowlist enforcement
 │   │   └── compose.ts        # Safe, shell‑free `docker compose` driver
-│   ├── tools/
-│   │   ├── index.ts          # Registry — wires every group, honours read‑only
-│   │   ├── context.ts        # Shared dependency bundle handed to each group
-│   │   ├── about.ts          # Credits & welcome
+│   ├── tools/                # One module per plugin's tools
+│   │   ├── context.ts        # Shared dependency bundle + plugin metadata
+│   │   ├── about.ts          # about / list_plugins (identity, locked)
 │   │   ├── containers.ts     # list / inspect / stats
 │   │   ├── logs.ts           # log tailing with stream demultiplexing
 │   │   ├── lifecycle.ts      # start / stop / restart / remove / exec
 │   │   ├── images.ts         # image inventory
 │   │   ├── system.ts         # system_info / disk_usage / networks / volumes
 │   │   └── compose.ts        # deploy / down / restart / pull / ps / config
+│   ├── panel/                # Interactive web dashboard
+│   │   ├── index.ts          # Panel entry point (docker-mcp-panel binary)
+│   │   ├── server.ts         # Node‑core HTTP server + REST API
+│   │   ├── service.ts        # UI data layer with demo mode
+│   │   └── public/           # Hand‑written SPA (index.html, styles.css, app.js)
 │   └── utils/
 │       ├── format.ts         # tables, byte & time humanisers
 │       └── result.ts         # MCP result helpers + error guard
+├── docker-mcp.config.json    # (optional) your config file
 ├── .env.example              # Commented configuration template
 ├── LICENSE                   # SoyRage Attribution License
 ├── NOTICE                    # Attribution notice
@@ -401,11 +507,15 @@ docker-mcp-server/
 ## 🧪 Development
 
 ```bash
-npm run dev        # hot‑reload with tsx
+npm run dev        # hot‑reload the MCP server with tsx
 npm run typecheck  # strict type check, no emit
-npm run build      # compile to dist/
-npm run start      # run the built server
+npm run build      # compile to dist/ and copy panel assets
+npm run start      # run the built MCP server
 npm run inspect    # launch the MCP Inspector against the built server
+npm run panel      # run the interactive panel
+npm run panel:dev  # hot‑reload the panel with tsx
+npm run panel:demo # run the panel with demo data
+npm run shots      # regenerate panel screenshots (needs Playwright chromium)
 npm run clean      # remove dist/
 ```
 

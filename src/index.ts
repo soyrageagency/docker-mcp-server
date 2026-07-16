@@ -18,7 +18,8 @@ import { loadConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import { DockerClient } from "./docker/client.js";
 import { ComposeDriver } from "./docker/compose.js";
-import { registerAllTools } from "./tools/index.js";
+import { BUILTIN_PLUGINS, selectPlugins } from "./plugins.js";
+import type { PluginInfo } from "./tools/context.js";
 import {
   ASCII_BANNER,
   BRAND,
@@ -83,7 +84,26 @@ async function main(): Promise<void> {
     },
   );
 
-  registerAllTools({ server, docker, compose, config, logger });
+  // Resolve the modular plugin selection from configuration, then register
+  // each enabled plugin. The full catalogue (with per-plugin enabled state) is
+  // handed to tools via the context so `list_plugins` can report it.
+  const selected = selectPlugins(config, logger);
+  const enabledNames = new Set(selected.map((p) => p.name));
+  const pluginInfo: PluginInfo[] = BUILTIN_PLUGINS.map((p) => ({
+    name: p.name,
+    title: p.title,
+    category: p.category,
+    mutating: p.mutating,
+    enabled: enabledNames.has(p.name),
+  }));
+
+  const context = { server, docker, compose, config, logger, plugins: pluginInfo };
+  for (const plugin of selected) plugin.register(context);
+  logger.info(
+    config.readOnly
+      ? "Tools registered in READ-ONLY mode."
+      : "Tools registered in full read/write mode.",
+  );
 
   // Connect over stdio. STDOUT is reserved for JSON-RPC; logs go to STDERR.
   const transport = new StdioServerTransport();
