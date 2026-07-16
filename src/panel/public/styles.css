@@ -266,6 +266,16 @@ body.locked { overflow: hidden; }
 .meter.warm > span { background: linear-gradient(90deg, var(--amber), #ffd27a); }
 .meter.hot > span { background: linear-gradient(90deg, var(--red), #ff8f89); }
 
+/* Trends charts */
+.trend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+.trend { background: var(--bg-elev); padding: 14px 18px 6px; }
+.trend-h { display: flex; align-items: baseline; justify-content: space-between; }
+.trend-h .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
+.trend-h .v { font-size: 16px; font-weight: 700; }
+.chart { margin-top: 8px; height: 64px; }
+.chart .spark { width: 100%; height: 64px; display: block; }
+@media (max-width: 720px) { .trend-grid { grid-template-columns: 1fr; } }
+
 /* Panels */
 .panel {
   background: var(--bg-elev);

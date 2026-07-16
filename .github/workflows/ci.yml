@@ -1,0 +1,57 @@
+name: CI
+
+# Build, type-check and run the deep end-to-end test suite on every push/PR.
+# Everything runs headless in demo mode — no Docker daemon required.
+#
+# Crafted by SoyRage Agency — https://soyrage.es/
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Build & deep test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Start demo panel
+        run: |
+          DOCKER_MCP_PANEL_DEMO=true DOCKER_MCP_PANEL_PORT=4600 node dist/panel/index.js &
+          echo "PANEL_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for panel
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4600/api/meta > /dev/null; then
+              echo "Panel is up"; exit 0
+            fi
+            sleep 0.5
+          done
+          echo "Panel did not start"; exit 1
+
+      - name: Deep end-to-end test (69 checks)
+        run: node scripts/deep-test.mjs
+
+      - name: Stop demo panel
+        if: always()
+        run: kill "${PANEL_PID}" 2>/dev/null || true

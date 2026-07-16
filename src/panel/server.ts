@@ -140,6 +140,10 @@ export function createPanelServer(
         return sendJson(res, 200, await service.snapshot());
       }
 
+      if (path === "/api/history") {
+        return sendJson(res, 200, { points: service.getHistory() });
+      }
+
       if (path === "/api/containers") {
         return sendJson(res, 200, await service.containers());
       }
@@ -290,9 +294,10 @@ export function startPanel(
 ): Promise<void> {
   const server = createPanelServer(service, config, logger);
   const { host, port } = config.panel;
-  // Kick off the auto-restart watchdog and the backup scheduler.
+  // Kick off the auto-restart watchdog, backup scheduler and metrics sampler.
   service.startWatchdog();
   service.startScheduler();
+  service.startSampler();
   return new Promise((resolvePromise) => {
     server.listen(port, host, () => {
       logger.info(`Panel ready at http://${host}:${port}`);

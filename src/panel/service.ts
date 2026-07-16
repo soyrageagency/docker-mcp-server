@@ -189,6 +189,10 @@ export class PanelService {
   private schedule: BackupSchedule = { enabled: false, time: "03:00", containers: ["all"], type: "commit", email: "" };
   private scheduler: NodeJS.Timeout | null = null;
   private lastScheduleRun = "";
+  /** Rolling time-series for the Trends charts (most recent last). */
+  private readonly history: Array<{ t: number; cpu: number; mem: number; memBytes: number }> = [];
+  private sampler: NodeJS.Timeout | null = null;
+  private static readonly HISTORY_CAP = 60;
 
   constructor(
     private readonly docker: DockerClient,
@@ -202,6 +206,13 @@ export class PanelService {
         { id: "snap-1001", container: "postgres", type: "export", ref: "./snapshots/postgres-20260716-0300.tar", sizeBytes: 214_958_080, createdAt: "2026-07-16T03:00:04.000Z", destination: "local + webhook" },
         { id: "snap-1000", container: "api", type: "commit", ref: "soyrage-snapshot/api:20260715-0300", sizeBytes: 189_792_256, createdAt: "2026-07-15T03:00:02.000Z", destination: "local" },
       );
+      // Seed the Trends charts so they aren't empty on first load.
+      const now = Date.now();
+      for (let i = 30; i > 0; i--) {
+        const cpu = 4 + Math.sin(i / 3) * 2 + Math.random() * 1.5;
+        const memBytes = 900_000_000 + Math.sin(i / 5) * 60_000_000 + Math.random() * 30_000_000;
+        this.history.push({ t: now - i * 5000, cpu: Math.max(0, cpu), mem: (memBytes / 33_567_776_768) * 100, memBytes });
+      }
     }
   }
 
@@ -371,6 +382,30 @@ export class PanelService {
   stopWatchdog(): void {
     if (this.watchdog) clearInterval(this.watchdog);
     this.watchdog = null;
+  }
+
+  /** Recent CPU/memory samples for the Trends charts. */
+  getHistory(): Array<{ t: number; cpu: number; mem: number; memBytes: number }> {
+    return [...this.history];
+  }
+
+  /** Start sampling CPU/memory into the history ring buffer. */
+  startSampler(intervalMs = 5000): void {
+    if (this.sampler) return;
+    this.sampler = setInterval(() => void this.tickSampler(), intervalMs);
+    if (typeof this.sampler.unref === "function") this.sampler.unref();
+  }
+
+  private async tickSampler(): Promise<void> {
+    try {
+      const snap = await this.snapshot();
+      const cpuPct = snap.system.cpus ? Math.min(100, snap.cpuTotal / snap.system.cpus) : snap.cpuTotal;
+      const memPct = snap.system.memoryBytes ? (snap.memoryUsed / snap.system.memoryBytes) * 100 : 0;
+      this.history.push({ t: Date.now(), cpu: Number(cpuPct.toFixed(2)), mem: Number(memPct.toFixed(2)), memBytes: snap.memoryUsed });
+      while (this.history.length > PanelService.HISTORY_CAP) this.history.shift();
+    } catch {
+      /* transient */
+    }
   }
 
   private async tickWatchdog(): Promise<void> {
