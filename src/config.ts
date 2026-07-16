@@ -36,7 +36,15 @@ interface FileConfig {
   composeCwd?: string;
   logLevel?: string;
   plugins?: { enabled?: string[]; disabled?: string[] };
-  panel?: { host?: string; port?: number; demo?: boolean; metrics?: boolean };
+  panel?: {
+    host?: string;
+    port?: number;
+    demo?: boolean;
+    metrics?: boolean;
+    terminal?: boolean;
+    backupDir?: string;
+    backupWebhook?: string;
+  };
 }
 
 /** Read and parse the JSON config file, if present. Never throws. */
@@ -130,6 +138,12 @@ export interface PanelConfig {
   readonly demo: boolean;
   /** Expose the Prometheus `/metrics` endpoint (for Prometheus/Zabbix/…). */
   readonly metrics: boolean;
+  /** Enable the in-panel command terminal (docker/compose runner). */
+  readonly terminal: boolean;
+  /** Directory where container snapshots/backups are written. */
+  readonly backupDir: string;
+  /** Optional webhook URL notified after a backup (route to email/Drive). */
+  readonly backupWebhook: string;
 }
 
 /** Fully-resolved, immutable server configuration. */
@@ -191,6 +205,9 @@ export function loadConfig(): AppConfig {
       port: envInt("DOCKER_MCP_PANEL_PORT", file.panel?.port ?? 4600),
       demo: envFlag("DOCKER_MCP_PANEL_DEMO", file.panel?.demo ?? false),
       metrics: envFlag("DOCKER_MCP_PANEL_METRICS", file.panel?.metrics ?? true),
+      terminal: envFlag("DOCKER_MCP_PANEL_TERMINAL", file.panel?.terminal ?? true),
+      backupDir: envStr("DOCKER_MCP_BACKUP_DIR", file.panel?.backupDir ?? "./snapshots"),
+      backupWebhook: envStr("DOCKER_MCP_BACKUP_WEBHOOK", file.panel?.backupWebhook ?? ""),
     }),
   });
 }

@@ -17,6 +17,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppConfig } from "../config.js";
@@ -109,6 +110,8 @@ export function createPanelServer(
           version: BRAND.version,
           demo: service.isDemo,
           readOnly: service.isReadOnly,
+          terminal: config.panel.terminal,
+          backupDir: config.panel.backupDir,
         });
       }
 
@@ -183,6 +186,44 @@ export function createPanelServer(
         return sendJson(res, 200, { ok: true, enabled: service.autoRestartList() });
       }
 
+      // ---- Details, networks & volumes -----------------------------------
+      if (path === "/api/inspect") {
+        const name = url.searchParams.get("name") ?? "";
+        if (!name) return sendJson(res, 400, { error: "Missing ?name=" });
+        return sendJson(res, 200, await service.inspectSummary(name));
+      }
+      if (path === "/api/networks") {
+        return sendJson(res, 200, { networks: await service.networks() });
+      }
+      if (path === "/api/volumes") {
+        return sendJson(res, 200, { volumes: await service.volumes() });
+      }
+
+      // ---- Terminal (command runner) -------------------------------------
+      if (path === "/api/run" && req.method === "POST") {
+        if (!config.panel.terminal) return sendJson(res, 403, { error: "Terminal disabled (DOCKER_MCP_PANEL_TERMINAL=false)." });
+        const body = (await readBody(req)) as { command?: string };
+        if (!body.command) return sendJson(res, 400, { error: "Expected { command }." });
+        return sendJson(res, 200, await service.runCommand(body.command));
+      }
+
+      // ---- Snapshots & scheduled backups ---------------------------------
+      if (path === "/api/backups") {
+        return sendJson(res, 200, { snapshots: service.listSnapshots() });
+      }
+      if (path === "/api/backup" && req.method === "POST") {
+        const body = (await readBody(req)) as { container?: string; type?: "commit" | "export" };
+        if (!body.container) return sendJson(res, 400, { error: "Expected { container, type }." });
+        return sendJson(res, 200, await service.createSnapshot(body.container, body.type === "export" ? "export" : "commit"));
+      }
+      if (path === "/api/schedule" && req.method === "GET") {
+        return sendJson(res, 200, service.getSchedule());
+      }
+      if (path === "/api/schedule" && req.method === "POST") {
+        const body = (await readBody(req)) as Record<string, unknown>;
+        return sendJson(res, 200, service.setSchedule(body));
+      }
+
       if (path === "/api/action" && req.method === "POST") {
         const body = (await readBody(req)) as {
           name?: string;
@@ -212,6 +253,18 @@ export function createPanelServer(
   });
 }
 
+/** Enumerate the IPv4 URLs the panel is reachable on (for a 0.0.0.0 bind). */
+function reachableUrls(port: number): string[] {
+  const urls = [`http://127.0.0.1:${port}`];
+  const ifaces = networkInterfaces();
+  for (const addrs of Object.values(ifaces)) {
+    for (const a of addrs ?? []) {
+      if (a.family === "IPv4" && !a.internal) urls.push(`http://${a.address}:${port}`);
+    }
+  }
+  return urls;
+}
+
 /** Start the panel and log its URL. Resolves once listening. */
 export function startPanel(
   service: PanelService,
@@ -220,11 +273,21 @@ export function startPanel(
 ): Promise<void> {
   const server = createPanelServer(service, config, logger);
   const { host, port } = config.panel;
-  // Kick off the auto-restart watchdog (no-op until a container opts in).
+  // Kick off the auto-restart watchdog and the backup scheduler.
   service.startWatchdog();
+  service.startScheduler();
   return new Promise((resolvePromise) => {
     server.listen(port, host, () => {
       logger.info(`Panel ready at http://${host}:${port}`);
+      // If bound to all interfaces, list the reachable addresses and warn
+      // about exposure — the panel is powerful and should sit behind a VPN.
+      if (host === "0.0.0.0" || host === "::") {
+        for (const url of reachableUrls(port)) logger.info(`  reachable at ${url}`);
+        logger.warn(
+          "Panel is bound to ALL interfaces. Do NOT expose it to the public Internet — " +
+            "keep it behind a VPN (WireGuard/Tailscale) or an authenticated reverse proxy.",
+        );
+      }
       if (config.panel.metrics) {
         logger.info(`Prometheus metrics at http://${host}:${port}/metrics`);
       }

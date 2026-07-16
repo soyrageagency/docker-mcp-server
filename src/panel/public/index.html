@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- Diagonal watermark overlay (visible in screenshots) -->
     <div class="watermark" aria-hidden="true"></div>
 
     <header class="topbar">
@@ -25,10 +24,11 @@
 
       <nav class="tabs" id="tabs">
         <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="terminal">Terminal</button>
         <button class="tab" data-tab="files">Files</button>
-        <button class="tab" data-tab="alerts">
-          Alerts <span id="alert-count" class="pill hidden">0</span>
-        </button>
+        <button class="tab" data-tab="backups">Backups</button>
+        <button class="tab" data-tab="system">System</button>
+        <button class="tab" data-tab="alerts">Alerts <span id="alert-count" class="pill hidden">0</span></button>
       </nav>
 
       <div class="topbar-right">
@@ -43,7 +43,6 @@
       <!-- ============ OVERVIEW ============ -->
       <section id="tab-overview" class="tabpane">
         <div class="stats" id="stats" aria-label="Host statistics"></div>
-
         <section class="panel">
           <div class="panel-head">
             <h2>Containers</h2>
@@ -54,33 +53,41 @@
             </div>
           </div>
           <div class="table-wrap">
-            <table class="grid" aria-label="Containers">
+            <table class="grid">
               <thead>
                 <tr>
-                  <th>State</th>
-                  <th>Name</th>
-                  <th>Image</th>
-                  <th>CPU</th>
-                  <th>Memory</th>
-                  <th>Ports</th>
-                  <th class="center">Auto</th>
-                  <th class="right">Actions</th>
+                  <th>State</th><th>Name</th><th>Image</th><th>CPU</th><th>Memory</th>
+                  <th>Ports</th><th class="center">Auto</th><th class="right">Actions</th>
                 </tr>
               </thead>
               <tbody id="containers"></tbody>
             </table>
           </div>
         </section>
-
         <section class="panel">
           <div class="panel-head"><h2>Images</h2></div>
           <div class="table-wrap">
-            <table class="grid" aria-label="Images">
-              <thead>
-                <tr><th>Repository:Tag</th><th>Image ID</th><th class="right">Size</th></tr>
-              </thead>
+            <table class="grid">
+              <thead><tr><th>Repository:Tag</th><th>Image ID</th><th class="right">Size</th></tr></thead>
               <tbody id="images"></tbody>
             </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ TERMINAL ============ -->
+      <section id="tab-terminal" class="tabpane hidden">
+        <section class="panel term-panel">
+          <div class="panel-head">
+            <h2>Terminal</h2>
+            <span class="muted">docker · smart suggestions — <b>Tab</b> to complete, <b>↑/↓</b> to pick, <b>Enter</b> to run</span>
+          </div>
+          <div class="term-out" id="term-out"></div>
+          <div class="term-input-wrap">
+            <span class="prompt">❯</span>
+            <input id="term-input" class="term-input" autocomplete="off" spellcheck="false"
+                   placeholder="e.g. docker ps -a   ·   docker logs web   ·   docker compose up -d" />
+            <div id="term-sugg" class="suggestions hidden"></div>
           </div>
         </section>
       </section>
@@ -98,10 +105,72 @@
           <div class="crumbs" id="fs-crumbs"></div>
           <div class="table-wrap">
             <table class="grid">
-              <thead>
-                <tr><th>Type</th><th>Name</th><th class="right">Size</th></tr>
-              </thead>
+              <thead><tr><th>Type</th><th>Name</th><th class="right">Size</th></tr></thead>
               <tbody id="fs-list"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ BACKUPS ============ -->
+      <section id="tab-backups" class="tabpane hidden">
+        <section class="panel">
+          <div class="panel-head"><h2>Create snapshot</h2><span id="bk-dir" class="muted mono"></span></div>
+          <div class="form-row">
+            <select id="bk-container" class="input"></select>
+            <select id="bk-type" class="input">
+              <option value="commit">Image snapshot (docker commit)</option>
+              <option value="export">Filesystem export (.tar)</option>
+            </select>
+            <button id="bk-create" class="primary">📸 Snapshot now</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Scheduled backup</h2></div>
+          <div class="form-row wrap">
+            <label class="chk"><input type="checkbox" id="sc-enabled" /> Enabled</label>
+            <span class="muted">at</span>
+            <input id="sc-time" class="input" type="time" value="03:00" />
+            <select id="sc-type" class="input">
+              <option value="commit">commit</option>
+              <option value="export">export</option>
+            </select>
+            <input id="sc-containers" class="input" placeholder="all   (or: web,api)" />
+            <input id="sc-email" class="input" type="email" placeholder="notify email (via webhook)" />
+            <button id="sc-save" class="primary">Save</button>
+          </div>
+          <div class="pad muted" id="sc-hint"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Snapshots</h2><button id="bk-refresh" class="ghost">⟳ Refresh</button></div>
+          <div class="table-wrap">
+            <table class="grid">
+              <thead><tr><th>Created</th><th>Container</th><th>Type</th><th>Reference</th><th>Destination</th><th class="right">Size</th></tr></thead>
+              <tbody id="bk-list"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ SYSTEM ============ -->
+      <section id="tab-system" class="tabpane hidden">
+        <section class="panel">
+          <div class="panel-head"><h2>Networks</h2></div>
+          <div class="table-wrap">
+            <table class="grid">
+              <thead><tr><th>Name</th><th>ID</th><th>Driver</th><th>Scope</th></tr></thead>
+              <tbody id="net-list"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Volumes</h2></div>
+          <div class="table-wrap">
+            <table class="grid">
+              <thead><tr><th>Name</th><th>Driver</th><th>Mountpoint</th></tr></thead>
+              <tbody id="vol-list"></tbody>
             </table>
           </div>
         </section>
@@ -110,16 +179,13 @@
       <!-- ============ ALERTS ============ -->
       <section id="tab-alerts" class="tabpane hidden">
         <section class="panel">
-          <div class="panel-head">
-            <h2>Alerts &amp; log watch</h2>
-            <button id="alerts-refresh" class="ghost">⟳ Refresh</button>
-          </div>
+          <div class="panel-head"><h2>Alerts &amp; log watch</h2><button id="alerts-refresh" class="ghost">⟳ Refresh</button></div>
           <div id="alerts-list" class="alerts"></div>
         </section>
       </section>
     </main>
 
-    <!-- Drawer (logs & file content) -->
+    <!-- Drawer (logs / files / details) -->
     <div id="drawer" class="drawer hidden" role="dialog" aria-modal="true">
       <div class="drawer-head">
         <h3 id="drawer-title">Logs</h3>
@@ -131,9 +197,7 @@
 
     <footer class="footer">
       <span>Crafted by <a href="https://soyrage.es/" target="_blank" rel="noreferrer">SoyRage Agency</a> · soyrage.es</span>
-      <span class="muted">
-        Monitoring: <a href="/metrics" target="_blank" rel="noreferrer">/metrics</a> (Prometheus · Zabbix) · Docker MCP Server
-      </span>
+      <span class="muted">Monitoring: <a href="/metrics" target="_blank" rel="noreferrer">/metrics</a> (Prometheus · Zabbix) · Docker MCP Server</span>
     </footer>
 
     <script src="app.js"></script>

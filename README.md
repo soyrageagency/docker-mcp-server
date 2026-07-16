@@ -99,7 +99,7 @@ Built by **[SoyRage Agency](https://soyrage.es/)** for the self‑hosting and ho
 | 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec** · soft attribution guard. |
 | 🔌 **Transport** | Local Unix socket · Windows named pipe · secured remote **TCP + TLS**. |
 | 🎨 **Identity** | ASCII welcome banner · `about` tool · MCP `instructions` that credit **SoyRage Agency** to the AI on connect. |
-| 🖥️ **Interactive panel** | Tabbed web dashboard: live CPU/memory monitoring, container/image browsing, **file explorer**, **auto‑restart watchdog**, **alerts & log watch**, log tailing, search and lifecycle actions — with a demo mode. |
+| 🖥️ **Interactive panel** | Tabbed web dashboard: live monitoring, **terminal with smart command suggestions**, **file explorer**, **snapshots & scheduled backups**, **networks/volumes**, **auto‑restart watchdog**, **alerts & log watch**, inspect, search and lifecycle actions — with a demo mode. |
 | ⌨️ **Terminal UI** | A creative, lazydocker‑style TUI with a SoyRage welcome, live gauges and one‑key actions — zero curses dependencies. |
 | 📈 **Monitoring** | Built‑in **Prometheus `/metrics`** endpoint — scrape it from Prometheus, Grafana, Zabbix, VictoriaMetrics, … |
 | 🧩 **Modular** | Every capability is a toggleable **plugin**; enable exactly the surface you want via config. |
@@ -125,8 +125,17 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 ### One‑click log tailing
 <img src="./assets/screenshots/02-logs.png" alt="Docker Panel log drawer by SoyRage Agency" width="90%">
 
+### Terminal — run docker commands with smart suggestions (Tab / ↑↓ / Enter)
+<img src="./assets/screenshots/08-terminal.png" alt="Docker Panel terminal with command suggestions by SoyRage Agency" width="90%">
+
+### Snapshots & scheduled backups — with email/cloud delivery
+<img src="./assets/screenshots/09-backups.png" alt="Docker Panel snapshots and scheduled backups by SoyRage Agency" width="90%">
+
 ### File explorer — browse a container's filesystem
 <img src="./assets/screenshots/06-files.png" alt="Docker Panel file explorer by SoyRage Agency" width="90%">
+
+### System — networks & volumes
+<img src="./assets/screenshots/10-system.png" alt="Docker Panel networks and volumes by SoyRage Agency" width="90%">
 
 ### Alerts & log watch — with a live auto‑restart watchdog
 <img src="./assets/screenshots/07-alerts.png" alt="Docker Panel alerts and auto-restart by SoyRage Agency" width="90%">
@@ -140,21 +149,38 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 
 **Panel highlights**
 
-- **Tabbed layout** — *Overview*, *Files* and *Alerts*, with a live alert badge in the header.
+- **Tabbed layout** — *Overview*, *Terminal*, *Files*, *Backups*, *System* and *Alerts*, with a live alert badge in the header.
 - **Live monitoring** — CPU‑load and memory‑used cards with meters, plus per‑container CPU % and memory bars sampled from the Docker Engine.
-- **Container grid** — colour‑coded state dots, images, ports as chips, **filter/search**, an **auto‑refresh** toggle, and start/stop/restart actions.
-- **📁 File explorer** — browse any container's filesystem (breadcrumbs, up‑navigation) and open text files in the drawer. Backed by a safe, shell‑free `exec`; a fabricated tree in demo mode.
-- **♻️ Auto‑restart watchdog** — flip the *Auto* toggle on a container and a background watchdog restarts it whenever it exits (respects read‑only mode).
-- **🚨 Alerts & log watch** — surfaces down/unhealthy containers, high CPU/memory, watchdog interventions, and **error/warn lines scanned from recent logs**.
-- **Log drawer** — click any container name to tail its output.
+- **⌨️ Terminal with smart suggestions** — type `docker …` and get context‑aware completions (including your real container names) with one‑line explanations. **Tab** to complete, **↑/↓** to pick, **Enter** to run. Commands are parsed to an argv array and spawned **without a shell**; a deny‑list blocks dangerous verbs and write verbs respect read‑only mode.
+- **📁 File explorer** — browse any container's filesystem (breadcrumbs, up‑navigation) and open text files in the drawer. Safe, shell‑free `exec`; a fabricated tree in demo mode.
+- **📸 Snapshots & scheduled backups** — snapshot a container as an image (`commit`) or a filesystem `export` (`.tar`) to a chosen directory; schedule a daily backup (time, containers, type); a **webhook** forwards each backup to **email, Google Drive or S3** via Zapier / Make / n8n.
+- **🧩 System tab** — networks and volumes at a glance; per‑container **inspect** details (env redacted, mounts, ports, restart policy) in the drawer.
+- **♻️ Auto‑restart watchdog** — flip the *Auto* toggle and a background watchdog restarts a container whenever it exits (respects read‑only mode).
+- **🚨 Alerts & log watch** — down/unhealthy containers, high CPU/memory, watchdog events, and **error/warn lines scanned from recent logs**.
+- **Container grid** — colour‑coded state dots, ports as chips, **filter/search**, **auto‑refresh** toggle, and per‑row actions (details · files · snapshot · start/stop/restart).
 - **Prometheus `/metrics`** — footer link exposes the scrape endpoint (see [Monitoring](#-monitoring-prometheus-zabbix--more)).
-- **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos on a machine with no daemon.
-- **Local‑only by default** — binds to `127.0.0.1`; expose deliberately if you must.
+- **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos with no daemon.
 - **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
 
-**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/files` · `/api/file` · `/api/alerts` · `/api/autorestart` · `/metrics`.
+**Panel REST API** (all local): `/api/snapshot` · `/api/containers` · `/api/images` · `/api/logs` · `/api/action` · `/api/run` · `/api/files` · `/api/file` · `/api/inspect` · `/api/networks` · `/api/volumes` · `/api/backups` · `/api/backup` · `/api/schedule` · `/api/alerts` · `/api/autorestart` · `/metrics`.
 
 > 🖼️ Regenerate the screenshots yourself with `npm run shots` (requires `npx playwright install chromium`).
+
+### 🔒 Panel security & networking (VPN, IPs, ports)
+
+The panel and terminal can control your host, so treat access like SSH.
+
+- **Bind locally by default** — the panel listens on `127.0.0.1:4600`. Reach a remote host by **tunnelling over a VPN** — [WireGuard](https://www.wireguard.com/) or [Tailscale](https://tailscale.com/) — and browsing to the host's VPN IP. **Do not** port‑forward the panel to the public Internet.
+- **If you must bind to the LAN**, set `DOCKER_MCP_PANEL_HOST=0.0.0.0`. On startup the server prints **every IP address it is reachable on** and a warning, e.g.:
+  ```
+  Panel ready at http://0.0.0.0:4600
+    reachable at http://127.0.0.1:4600
+    reachable at http://10.8.0.3:4600      ← your WireGuard IP
+    reachable at http://192.168.1.42:4600  ← your LAN IP
+  Panel is bound to ALL interfaces … keep it behind a VPN or an authenticated reverse proxy.
+  ```
+- **Change the port** with `DOCKER_MCP_PANEL_PORT` (e.g. `8443`) to avoid clashes or sit behind a reverse proxy.
+- **Port‑forwarding / reverse proxy** — if you expose it, put an authenticated proxy (Caddy/nginx/Traefik with Basic‑Auth or SSO + TLS) in front; never forward the raw port. Combine with `DOCKER_MCP_READONLY=true` for view‑only deployments, and `DOCKER_MCP_PANEL_TERMINAL=false` to disable the command runner.
 
 ---
 
@@ -398,6 +424,9 @@ Every setting is an environment variable. A local **`.env`** file (next to `pack
 | `DOCKER_MCP_PANEL_PORT` | `4600` | Port for the interactive panel. |
 | `DOCKER_MCP_PANEL_DEMO` | `false` | Serve fabricated demo data in the panel/TUI. |
 | `DOCKER_MCP_PANEL_METRICS` | `true` | Expose the Prometheus `/metrics` endpoint. |
+| `DOCKER_MCP_PANEL_TERMINAL` | `true` | Enable the in‑panel command terminal. |
+| `DOCKER_MCP_BACKUP_DIR` | `./snapshots` | Directory for container snapshots/exports. |
+| `DOCKER_MCP_BACKUP_WEBHOOK` | — | Webhook called after each backup (email/cloud bridge). |
 | `DOCKER_MCP_CONFIG` | `docker-mcp.config.json` | Path to the optional JSON config file. |
 
 **Boolean parsing:** any of `1`, `true`, `yes`, `on` (case‑insensitive) counts as true. A JSON **config file** provides defaults for all of the above — see [Config file](#config-file).

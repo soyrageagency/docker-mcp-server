@@ -100,6 +100,47 @@ select.input { cursor: pointer; }
 .alert .msg { color: var(--text); }
 .alert .when { font-size: 11px; white-space: nowrap; }
 
+/* Scroll lock (drawer bugfix) */
+body.locked { overflow: hidden; }
+
+/* Buttons & forms */
+.primary {
+  background: linear-gradient(180deg, #3fa4f5, var(--accent)); color: #fff; border: none;
+  border-radius: 9px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.primary:hover { filter: brightness(1.07); }
+.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-row { display: flex; align-items: center; gap: 10px; padding: 16px 18px; }
+.form-row.wrap { flex-wrap: wrap; }
+.tagpill { font: 600 11px var(--mono); padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+
+/* Terminal */
+.term-panel { display: flex; flex-direction: column; }
+.term-out {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.55; color: #c7d0de;
+  padding: 16px 18px; height: 460px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+}
+.to-cmd { color: var(--text); margin-top: 8px; }
+.to-cmd .prompt { color: var(--accent); }
+.to-out { color: #aeb8c8; margin: 2px 0 6px; }
+.to-out.err { color: var(--red); }
+.to-out b { color: var(--text); }
+.term-input-wrap { position: relative; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding: 12px 16px; }
+.prompt { color: var(--accent); font-family: var(--mono); font-weight: 700; }
+.term-input {
+  flex: 1; background: transparent; border: none; outline: none; color: var(--text);
+  font-family: var(--mono); font-size: 13px;
+}
+.suggestions {
+  position: absolute; left: 34px; right: 16px; bottom: calc(100% - 2px);
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; box-shadow: 0 -12px 32px rgba(0,0,0,0.45); z-index: 8;
+}
+.sugg { display: flex; justify-content: space-between; gap: 16px; padding: 8px 12px; cursor: pointer; }
+.sugg:hover, .sugg.sel { background: var(--accent-soft); }
+.sugg-cmd { color: var(--text); font-size: 12.5px; }
+.sugg-desc { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+
 /* Diagonal repeated watermark for screenshots */
 .watermark {
   position: fixed;
