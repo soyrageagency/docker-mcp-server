@@ -20,7 +20,8 @@
   ],
   "bin": {
     "docker-mcp-server": "dist/index.js",
-    "docker-mcp-panel": "dist/panel/index.js"
+    "docker-mcp-panel": "dist/panel/index.js",
+    "docker-mcp-tui": "dist/tui/index.js"
   },
   "main": "dist/index.js",
   "files": [
@@ -39,6 +40,9 @@
     "panel": "node dist/panel/index.js",
     "panel:dev": "tsx watch src/panel/index.ts",
     "panel:demo": "node -e \"process.env.DOCKER_MCP_PANEL_DEMO='true';import('./dist/panel/index.js')\"",
+    "tui": "node dist/tui/index.js",
+    "tui:dev": "tsx src/tui/index.ts",
+    "tui:demo": "node -e \"process.env.DOCKER_MCP_PANEL_DEMO='true';import('./dist/tui/index.js')\"",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
     "shots": "node scripts/shots.mjs",
     "typecheck": "tsc --noEmit",

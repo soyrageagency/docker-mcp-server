@@ -41,6 +41,8 @@
 - [Why it exists](#-why-it-exists)
 - [Feature overview](#-feature-overview)
 - [The interactive panel](#-the-interactive-panel)
+- [The terminal UI (TUI)](#-the-terminal-ui-tui)
+- [Monitoring: Prometheus, Zabbix & more](#-monitoring-prometheus-zabbix--more)
 - [Modular plugin architecture](#-modular-plugin-architecture)
 - [How it works](#-how-it-works)
 - [Requirements](#-requirements)
@@ -106,7 +108,9 @@ Built by **[SoyRage Agency](https://soyrage.es/)** for the self‑hosting and ho
 | 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec** · soft attribution guard. |
 | 🔌 **Transport** | Local Unix socket · Windows named pipe · secured remote **TCP + TLS**. |
 | 🎨 **Identity** | ASCII welcome banner · `about` tool · MCP `instructions` that credit **SoyRage Agency** to the AI on connect. |
-| 🖥️ **Interactive panel** | Minimalist web dashboard to view stats, browse containers/images, tail logs and run lifecycle actions — with a demo mode. |
+| 🖥️ **Interactive panel** | Minimalist web dashboard with live CPU/memory monitoring, container/image browsing, log tailing and lifecycle actions — with a demo mode. |
+| ⌨️ **Terminal UI** | A creative, lazydocker‑style TUI with a SoyRage welcome, live gauges and one‑key actions — zero curses dependencies. |
+| 📈 **Monitoring** | Built‑in **Prometheus `/metrics`** endpoint — scrape it from Prometheus, Grafana, Zabbix, VictoriaMetrics, … |
 | 🧩 **Modular** | Every capability is a toggleable **plugin**; enable exactly the surface you want via config. |
 | 🧱 **Engineering** | 100% TypeScript, strict mode · one module per concern · tiny dependency surface · stderr‑only logging. |
 
@@ -139,14 +143,86 @@ npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 
 **Panel highlights**
 
-- **Live stat cards** — running/total containers, images, vCPUs, memory.
+- **Live monitoring** — CPU‑load and memory‑used cards with meters, plus per‑container CPU % and memory bars sampled from the Docker Engine.
 - **Container grid** — colour‑coded state dots, images, ports as chips, and start/stop/restart actions.
 - **Log drawer** — click any container name to tail its output.
-- **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data, perfect for previews and client demos on a machine with no daemon.
+- **Prometheus `/metrics`** — a footer link exposes the scrape endpoint (see [Monitoring](#-monitoring-prometheus-zabbix--more)).
+- **Demo mode** — `DOCKER_MCP_PANEL_DEMO=true` serves fabricated‑but‑realistic data (with gentle live jitter), perfect for previews and client demos on a machine with no daemon.
 - **Local‑only by default** — binds to `127.0.0.1`; expose deliberately if you must.
 - **Zero UI dependencies** — hand‑written HTML/CSS/JS served by a Node‑core HTTP server.
 
 > 🖼️ Regenerate the screenshots yourself with `npm run shots` (requires `npx playwright install chromium`).
+
+---
+
+## ⌨️ The terminal UI (TUI)
+
+Prefer the terminal? Launch **`docker-mcp-tui`** — a creative, [lazydocker](https://github.com/jesseduffield/lazydocker)‑style dashboard that opens with a SoyRage Agency welcome and then drops you into a live, keyboard‑driven view. It’s hand‑rolled ANSI (no curses library), so it adds **zero dependencies**.
+
+```bash
+npm run tui        # → interactive terminal dashboard
+npm run tui:demo   # same, with realistic mock data (no daemon needed)
+```
+
+<div align="center">
+
+### A warm welcome — “thank you for using our repository ⭐”
+<img src="./assets/screenshots/05-tui-welcome.png" alt="SoyRage Agency terminal welcome" width="80%">
+
+### Live dashboard — gauges, details & one‑key actions
+<img src="./assets/screenshots/04-tui.png" alt="Docker MCP terminal UI by SoyRage Agency" width="88%">
+
+</div>
+
+**Keys:** `↑/↓` (or `j/k`) navigate · `l` toggle logs · `S` start · `s` stop · `R` restart · `r` refresh · `q` quit.
+Live CPU/memory gauges refresh automatically; read‑only mode hides the action keys.
+
+---
+
+## 📈 Monitoring: Prometheus, Zabbix & more
+
+The panel doubles as a **metrics exporter**. It serves a standard Prometheus text endpoint at **`/metrics`**, so your Docker host becomes a first‑class monitoring target with **no extra agent**.
+
+```bash
+npm run panel                      # metrics on by default
+curl http://127.0.0.1:4600/metrics
+```
+
+**Exposed series** (labelled by `name`, `state`, `image` where relevant):
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `dockermcp_up` | gauge | 1 when the exporter is running. |
+| `dockermcp_build_info` | gauge | Build/author metadata (product, **author = SoyRage Agency**, version, url). |
+| `dockermcp_host_cpus` | gauge | Logical CPUs on the host. |
+| `dockermcp_host_memory_bytes` | gauge | Total host memory. |
+| `dockermcp_containers_total` / `_running` | gauge | Container counts. |
+| `dockermcp_images_total` | gauge | Cached images. |
+| `dockermcp_cpu_percent_total` | gauge | Aggregate container CPU %. |
+| `dockermcp_memory_used_bytes` | gauge | Aggregate container memory. |
+| `dockermcp_container_running{…}` | gauge | 1 if a given container is running. |
+| `dockermcp_container_cpu_percent{…}` | gauge | Per‑container CPU %. |
+| `dockermcp_container_memory_bytes{…}` | gauge | Per‑container memory. |
+
+### Prometheus
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: docker-mcp
+    static_configs:
+      - targets: ["your-host:4600"]
+```
+
+### Zabbix
+
+Use an **HTTP agent** item pointed at `http://your-host:4600/metrics`, then add
+dependent items with the **Prometheus pattern** preprocessing step, e.g.
+`dockermcp_containers_running` or
+`dockermcp_container_cpu_percent{name="api"}`. Grafana, Grafana Agent,
+VictoriaMetrics and Netdata can scrape the same endpoint.
+
+> Turn the exporter off with `DOCKER_MCP_PANEL_METRICS=false` if you only want the UI.
 
 ---
 
@@ -314,7 +390,8 @@ Every setting is an environment variable. A local **`.env`** file (next to `pack
 | `DOCKER_MCP_DISABLED_PLUGINS` | — | Disable these plugins (comma‑separated). `about` is locked. |
 | `DOCKER_MCP_PANEL_HOST` | `127.0.0.1` | Bind address for the interactive panel. |
 | `DOCKER_MCP_PANEL_PORT` | `4600` | Port for the interactive panel. |
-| `DOCKER_MCP_PANEL_DEMO` | `false` | Serve fabricated demo data in the panel. |
+| `DOCKER_MCP_PANEL_DEMO` | `false` | Serve fabricated demo data in the panel/TUI. |
+| `DOCKER_MCP_PANEL_METRICS` | `true` | Expose the Prometheus `/metrics` endpoint. |
 | `DOCKER_MCP_CONFIG` | `docker-mcp.config.json` | Path to the optional JSON config file. |
 
 **Boolean parsing:** any of `1`, `true`, `yes`, `on` (case‑insensitive) counts as true. A JSON **config file** provides defaults for all of the above — see [Config file](#config-file).
@@ -457,7 +534,8 @@ docker-mcp-server/
 │       └── compose.yaml      # nginx + redis playground
 ├── scripts/
 │   ├── copy-public.mjs       # Copies panel assets into dist/ after build
-│   └── shots.mjs             # Regenerates the panel screenshots (Playwright)
+│   ├── shots.mjs             # Regenerates the panel screenshots (Playwright)
+│   └── tui-shot.mjs          # Renders the TUI to PNG (ANSI→HTML→Playwright)
 ├── src/
 │   ├── index.ts              # MCP entry point: banner, attribution guard, wiring
 │   ├── branding.ts           # SoyRage identity, ASCII banner, MCP instructions
@@ -478,9 +556,14 @@ docker-mcp-server/
 │   │   └── compose.ts        # deploy / down / restart / pull / ps / config
 │   ├── panel/                # Interactive web dashboard
 │   │   ├── index.ts          # Panel entry point (docker-mcp-panel binary)
-│   │   ├── server.ts         # Node‑core HTTP server + REST API
-│   │   ├── service.ts        # UI data layer with demo mode
+│   │   ├── server.ts         # Node‑core HTTP server + REST API + /metrics
+│   │   ├── service.ts        # UI/monitoring data layer, stats & Prometheus
 │   │   └── public/           # Hand‑written SPA (index.html, styles.css, app.js)
+│   ├── tui/                  # Terminal UI (docker-mcp-tui binary)
+│   │   ├── index.ts          # TUI entry point (+ --frame/--splash snapshots)
+│   │   ├── app.ts            # Interactive app: welcome, gauges, key handling
+│   │   ├── box.ts            # Rounded box renderer
+│   │   └── ansi.ts           # ANSI colours, cursor control, width-aware pads
 │   └── utils/
 │       ├── format.ts         # tables, byte & time humanisers
 │       └── result.ts         # MCP result helpers + error guard
@@ -512,9 +595,11 @@ npm run typecheck  # strict type check, no emit
 npm run build      # compile to dist/ and copy panel assets
 npm run start      # run the built MCP server
 npm run inspect    # launch the MCP Inspector against the built server
-npm run panel      # run the interactive panel
+npm run panel      # run the interactive panel (with /metrics)
 npm run panel:dev  # hot‑reload the panel with tsx
 npm run panel:demo # run the panel with demo data
+npm run tui        # run the terminal UI
+npm run tui:demo   # run the terminal UI with demo data
 npm run shots      # regenerate panel screenshots (needs Playwright chromium)
 npm run clean      # remove dist/
 ```
@@ -564,11 +649,14 @@ No. This server talks only to your Docker daemon and your MCP client over local 
 
 ## 🗺️ Roadmap
 
+- [x] Interactive web panel with live monitoring
+- [x] Creative terminal UI (TUI)
+- [x] Prometheus `/metrics` endpoint (Prometheus/Zabbix ready)
 - [ ] `follow_logs` streaming with server‑sent progress
 - [ ] Image pull/build tools with progress reporting
 - [ ] Prune tools (`docker system prune`) gated behind explicit confirmation
 - [ ] MCP **resources** for read‑only container/stack snapshots
-- [ ] Optional Prometheus‑style metrics endpoint
+- [ ] Historical metrics retention & built‑in charts
 - [ ] Published npm package for one‑line `npx` usage
 
 Ideas and PRs welcome — see below.
