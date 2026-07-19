@@ -238,10 +238,15 @@ npm run tui:demo   # same, with realistic mock data (no daemon needed)
 ### Live dashboard — gauges, details & one‑key actions
 <img src="./assets/screenshots/04-tui.png" alt="Docker MCP terminal UI by SoyRage Agency" width="88%">
 
+### AI copilot — give an order in plain English
+<img src="./assets/screenshots/06-tui-ai.png" alt="AI copilot inside the Docker MCP terminal UI by SoyRage Agency" width="88%">
+
 </div>
 
-**Keys:** `↑/↓` (or `j/k`) navigate · `l` toggle logs · `S` start · `s` stop · `R` restart · `r` refresh · `q` quit.
-Live CPU/memory gauges refresh automatically; read‑only mode hides the action keys.
+**AI copilot.** Press **`a`** (or `:`) to open the copilot bar and type what you want — *“restart the web container”*, *“stop the backup job”*, *“show every container”*. The copilot turns it into the exact `docker` command, shows it to you, and runs it only after you confirm with **`y`**. It speaks to any OpenAI‑compatible endpoint (`DOCKER_MCP_AI_ENDPOINT` / `DOCKER_MCP_AI_KEY` / `DOCKER_MCP_AI_MODEL`) and falls back to a built‑in rule engine in demo mode, so you can try it with **zero setup**.
+
+**Keys:** `↑/↓` (or `j/k`) navigate · `l` toggle logs · **`a` AI copilot** · `S` start · `s` stop · `R` restart · `r` refresh · `?` help · `q` quit.
+Live CPU/memory gauges refresh automatically; read‑only mode hides the action keys (the copilot still explains, but never runs a mutating command).
 
 ---
 

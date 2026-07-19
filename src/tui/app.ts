@@ -36,6 +36,7 @@ function bytes(n?: number): string {
 }
 
 type Mode = "splash" | "main";
+export type Input = "normal" | "ai" | "confirm" | "message";
 
 /** The interactive terminal application. */
 export class TuiApp {
@@ -48,6 +49,11 @@ export class TuiApp {
   private status = "";
   private timer: NodeJS.Timeout | null = null;
   private refreshing = false;
+  private input: Input = "normal";
+  private aiInput = "";
+  private message = "";
+  private messageTitle = "";
+  private pending: { label: string; run: () => Promise<void> } | null = null;
 
   constructor(
     private readonly service: PanelService,
@@ -81,6 +87,10 @@ export class TuiApp {
       return;
     }
 
+    if (this.input === "message") { this.message = ""; this.input = "normal"; this.render(); return; }
+    if (this.input === "confirm") return this.onConfirmKey(key);
+    if (this.input === "ai") return this.onAiKey(key);
+
     switch (key) {
       case "q":
         return void this.quit();
@@ -96,6 +106,14 @@ export class TuiApp {
         this.status = "Refreshing…";
         void this.refresh();
         break;
+      case "?":
+        this.message = this.helpText(); this.messageTitle = "Keyboard shortcuts"; this.input = "message";
+        return this.render();
+      case "a":
+      case ":":
+        if (this.service.aiEnabled) { this.input = "ai"; this.aiInput = ""; this.render(); }
+        else { this.status = color.yellow("AI off — set DOCKER_MCP_AI_ENDPOINT (or use demo)."); this.render(); }
+        return;
       case "l":
         this.showLogs = !this.showLogs;
         if (this.showLogs) void this.loadLogs();
@@ -113,6 +131,79 @@ export class TuiApp {
       default:
         break;
     }
+  }
+
+  private onAiKey(key: string): void {
+    if (key === "\x1b") { this.input = "normal"; this.aiInput = ""; this.render(); return; }
+    if (key === "\r" || key === "\n") {
+      const q = this.aiInput.trim(); this.input = "normal"; this.aiInput = ""; this.render();
+      if (q) void this.runAi(q);
+      return;
+    }
+    if (key === "\x7f" || key === "\b") this.aiInput = this.aiInput.slice(0, -1);
+    else if (key >= " " && key.length === 1) this.aiInput += key;
+    this.render();
+  }
+
+  private onConfirmKey(key: string): void {
+    const pending = this.pending;
+    this.pending = null;
+    this.input = "normal";
+    if ((key === "y" || key === "Y") && pending) void pending.run();
+    else { this.status = color.gray("Cancelled."); this.render(); }
+  }
+
+  /** Ask the AI copilot; propose the docker command and confirm before running. */
+  private async runAi(prompt: string): Promise<void> {
+    this.status = color.gray("AI thinking…");
+    this.render();
+    try {
+      const r = await this.service.aiAssist("command", prompt);
+      if (r.command) {
+        const label = `AI: ${r.command}${r.explanation ? " — " + r.explanation : ""}`;
+        this.pending = { label, run: () => this.runAiCommand(r.command as string) };
+        this.input = "confirm"; this.status = ""; this.render();
+      } else {
+        this.showMessage(r.text || "AI had no suggestion.");
+      }
+    } catch (err) {
+      this.showMessage(`AI error: ${(err as Error).message}`);
+    }
+  }
+
+  private async runAiCommand(command: string): Promise<void> {
+    this.status = color.gray(`Running: ${command}`);
+    this.render();
+    try {
+      const res = await this.service.runCommand(command);
+      this.showMessage(`❯ ${command}\n\n${res.output}`, `Command output (exit ${res.code})`);
+      await this.refresh();
+    } catch (err) {
+      this.showMessage(`Error: ${(err as Error).message}`);
+    }
+  }
+
+  private showMessage(text: string, title = "AI copilot"): void {
+    this.message = text; this.messageTitle = title; this.input = "message"; this.status = "";
+    this.render();
+  }
+
+  private helpText(): string {
+    return [
+      color.gray("Navigation"),
+      "  ↑/↓  j/k     move selection      l  toggle logs",
+      "",
+      color.gray("Actions"),
+      "  S  start     s  stop     R  restart",
+      "",
+      color.gray("AI copilot"),
+      `  ${color.accent("a")}  or  ${color.accent(":")}    give an order in plain language, e.g.:`,
+      `     ${color.brightCyan('"restart web"')}   ${color.brightCyan('"why did api crash"')}   ${color.brightCyan('"show running containers"')}`,
+      "  The AI proposes a docker command; confirm with y before it runs.",
+      "",
+      color.gray("General"),
+      "  r  refresh      ?  this help      q  quit",
+    ].join("\n");
   }
 
   private move(delta: number): void {
@@ -251,11 +342,16 @@ export class TuiApp {
    * Render one static main frame to a string (no cursor control). Used by the
    * `--frame` snapshot mode to document the TUI. Refreshes data first.
    */
-  async frame(cols = 100, rows = 30): Promise<string> {
+  async frame(cols = 100, rows = 30, demoInput?: Input): Promise<string> {
     this.mode = "main";
     const snap = await this.service.snapshot();
     this.system = snap.system;
     this.containers = snap.containers;
+    if (demoInput === "ai") { this.input = "ai"; this.aiInput = "restart the web container"; }
+    else if (demoInput === "message") {
+      this.input = "message"; this.messageTitle = "Command output (exit 0)";
+      this.message = "❯ docker restart web-prod\n\nweb-prod\n\nContainer restarted in 1.4s — health check passing.";
+    }
     return this.buildMainLines(cols, rows).join("\n");
   }
 
@@ -295,6 +391,7 @@ export class TuiApp {
 
     lines.push(this.footerKeys(cols));
     lines.push(this.footerBrand(cols));
+    if (this.input === "message" && this.message) this.overlay(lines, this.messageTitle || "Info", this.message, cols, rows);
     return lines;
   }
 
@@ -381,11 +478,28 @@ export class TuiApp {
   }
 
   private footerKeys(cols: number): string {
-    const keys = this.service.isReadOnly
-      ? "↑/↓ move · l logs · r refresh · q quit"
-      : "↑/↓ move · l logs · S start · s stop · R restart · r refresh · q quit";
-    const status = this.status ? `  ${this.status}` : "";
+    let keys: string;
+    if (this.input === "ai") keys = `${color.accent("AI ❯")} ${color.bold(this.aiInput)}${color.dim("▏")}   ${color.gray("Enter to run · Esc to cancel")}`;
+    else if (this.input === "confirm" && this.pending) keys = color.yellow(`${this.pending.label}   run? y / n`);
+    else if (this.input === "message") keys = color.gray("press any key to dismiss");
+    else keys = this.service.isReadOnly
+      ? "↑/↓ move · l logs · a AI · r refresh · ? help · q quit"
+      : "↑/↓ · l logs · a AI · S start · s stop · R restart · r · ? help · q";
+    const status = this.status && this.input === "normal" ? `  ${this.status}` : "";
     return truncate(` ${color.gray(keys)}${status}`, cols);
+  }
+
+  /** Overlay a centered modal box (help / AI answers) onto the frame. */
+  private overlay(lines: string[], title: string, text: string, cols: number, rows: number): void {
+    const raw = text.split("\n");
+    const w = Math.min(cols - 6, Math.max(20, ...raw.map((l) => stripLen(l))) + 4);
+    const content = raw.map((l) => ` ${truncate(l, w - 4)}`);
+    const box = drawBox(title, content, w, content.length + 2);
+    const top = Math.max(1, Math.floor((rows - box.length) / 2));
+    const left = Math.max(0, Math.floor((cols - w) / 2));
+    for (let i = 0; i < box.length; i++) {
+      if (top + i < lines.length) lines[top + i] = " ".repeat(left) + box[i];
+    }
   }
 
   private footerBrand(cols: number): string {
