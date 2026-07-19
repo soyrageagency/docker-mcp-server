@@ -49,7 +49,12 @@ async function main(): Promise<void> {
     process.exit(0);
   }
   if (process.argv.includes("--frame")) {
-    const frame = await app.frame(96, 30);
+    const overlay = process.argv.includes("--ai")
+      ? "ai"
+      : process.argv.includes("--msg")
+        ? "message"
+        : undefined;
+    const frame = await app.frame(96, 30, overlay);
     process.stdout.write(frame + "\n");
     process.exit(0);
   }

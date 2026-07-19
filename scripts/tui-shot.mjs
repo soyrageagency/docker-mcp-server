@@ -97,9 +97,11 @@ mkdirSync("assets/screenshots", { recursive: true });
 const env = { ...process.env, DOCKER_MCP_PANEL_DEMO: "true", FORCE_COLOR: "3" };
 const frame = execSync("node dist/tui/index.js --frame", { env, encoding: "utf8" });
 const splash = execSync("node dist/tui/index.js --splash", { env, encoding: "utf8" });
+const aiFrame = execSync("node dist/tui/index.js --frame --msg", { env, encoding: "utf8" });
 
 const browser = await chromium.launch();
 await shoot(browser, splash, "assets/screenshots/05-tui-welcome.png");
 await shoot(browser, frame, "assets/screenshots/04-tui.png");
+await shoot(browser, aiFrame, "assets/screenshots/06-tui-ai.png");
 await browser.close();
 rmSync("assets/screenshots/_tmp.html", { force: true });
