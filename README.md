@@ -784,6 +784,18 @@ If this project is useful to you, a ⭐ on the repo and a link back to **[soyrag
 
 ---
 
+## 🧰 More from the SoyRage self‑hosting suite
+
+Docker MCP Server is part of a family of open‑source infrastructure tools built with the same care — same design language, same safety‑first defaults, same "chat with your infra" philosophy:
+
+| Project | What it does |
+| --- | --- |
+| 🐳 **[Docker MCP Server](https://github.com/soyrageagency/docker-mcp-server)** | *(you are here)* Chat with your Docker host — containers, logs, Compose, a live panel & a TUI copilot. |
+| 🖧 **[Proxmox MCP Server](https://github.com/soyrageagency/proxmox-mcp-server)** | Chat with your Proxmox VE cluster — nodes, VMs & LXC, snapshots and full guest CRUD, plus a tabbed terminal dashboard with an AI command bar. |
+| 🚚 **[VMware → Proxmox Toolkit (V2P)](https://github.com/soyrageagency/vmware-to-proxmox)** | Leaving vSphere after the Broadcom price hikes? Inventory vCenter, score compatibility, estimate cost & time, plan disk conversion and export a professional PDF assessment. |
+
+---
+
 ## 💙 Support the project
 
 Docker MCP Server is built and maintained in the open by **SoyRage Agency**. If it saves you time or you use it at work, please consider supporting continued development — it directly funds new features (native SMTP/S3 backups, historical charts, more integrations) and keeps the project free.

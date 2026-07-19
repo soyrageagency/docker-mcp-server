@@ -5,7 +5,14 @@
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
   "author": "SoyRage Agency (https://soyrage.es/)",
-  "homepage": "https://soyrage.es/",
+  "homepage": "https://github.com/soyrageagency/docker-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soyrageagency/docker-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/soyrageagency/docker-mcp-server/issues"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -40,6 +47,7 @@
   },
   "scripts": {
     "build": "tsc && node scripts/copy-public.mjs",
+    "prepublishOnly": "npm run build",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "panel": "node dist/panel/index.js",
