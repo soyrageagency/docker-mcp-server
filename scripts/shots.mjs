@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 const OUT = "assets/screenshots"; mkdirSync(OUT, { recursive: true });
 const B = "http://127.0.0.1:4611";
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 940 }, deviceScaleFactor: 2, colorScheme: "dark" });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 940 }, deviceScaleFactor: 2, colorScheme: "light" });
 const page = await ctx.newPage();
 await page.goto(B, { waitUntil: "networkidle" });
 await page.waitForSelector("#containers tr");
@@ -17,9 +17,17 @@ await page.click('.tab[data-tab="terminal"]'); await page.waitForTimeout(200);
 await page.fill('#term-input', 'docker logs'); await page.dispatchEvent('#term-input','input'); await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/08-terminal.png` }); console.log("08");
 
-await page.click('.tab[data-tab="files"]'); await page.waitForSelector("#fs-list tr");
-const appRow = await page.$('#fs-list [data-name="app"]'); if (appRow) { await appRow.click(); await page.waitForTimeout(300); }
+await page.click('.tab[data-tab="files"]'); await page.waitForSelector("#fs-list tr"); await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/06-files.png` }); console.log("06");
+
+// File editor — open a text file to show the light-surfaced editor.
+const fileRow = await page.$('#fs-list [data-name="entrypoint.sh"]');
+if (fileRow) {
+  await fileRow.click();
+  await page.waitForSelector('.editor', { timeout: 5000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/11-editor.png` }); console.log("11");
+}
 
 await page.click('.tab[data-tab="backups"]'); await page.waitForSelector("#bk-list tr"); await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/09-backups.png` }); console.log("09");
