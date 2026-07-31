@@ -20,8 +20,9 @@ import { DockerClient } from "../docker/client.js";
 import { PanelService } from "./service.js";
 import { startPanel } from "./server.js";
 import { ASCII_BANNER, BRAND, verifyAttribution } from "../branding.js";
+import { isEntryPoint } from "../entry.js";
 
-async function main(): Promise<void> {
+export async function runPanel(): Promise<void> {
   const config = loadConfig();
   const logger = new Logger(config.logLevel, "panel");
 
@@ -55,9 +56,11 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-main().catch((error) => {
-  process.stderr.write(
-    `Fatal: ${error instanceof Error ? error.stack : error}\n`,
-  );
-  process.exit(1);
-});
+if (isEntryPoint(import.meta.url)) {
+  runPanel().catch((error) => {
+    process.stderr.write(
+      `Fatal: ${error instanceof Error ? error.stack : error}\n`,
+    );
+    process.exit(1);
+  });
+}

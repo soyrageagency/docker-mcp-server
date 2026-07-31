@@ -24,6 +24,8 @@ import type { AppConfig } from "../config.js";
 import type { Logger } from "../logger.js";
 import { BRAND } from "../branding.js";
 import { PanelService, type ContainerAction } from "./service.js";
+import { checkForUpdate } from "../update/channel.js";
+import { isPackaged, readAssetBuffer } from "../assets.js";
 
 /** Directory holding the static SPA assets (index.html, app.js, styles.css). */
 const PUBLIC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "public");
@@ -70,18 +72,37 @@ function readBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-/** Serve a static asset from PUBLIC_DIR, guarding against path traversal. */
+/** Serve a static asset, guarding against path traversal. Works from disk or,
+ *  when running as a standalone binary, from the embedded SEA assets. */
 async function serveStatic(res: ServerResponse, urlPath: string): Promise<void> {
   const rel = urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "");
   const target = normalize(join(PUBLIC_DIR, rel));
 
-  if (!target.startsWith(PUBLIC_DIR) || !existsSync(target)) {
+  // Path-traversal guard still applies to the derived key.
+  if (!target.startsWith(PUBLIC_DIR)) {
     res.writeHead(404, { "Content-Type": "text/plain" });
     res.end("Not found");
     return;
   }
 
-  const body = await readFile(target);
+  let body: Buffer;
+  if (isPackaged()) {
+    try {
+      body = readAssetBuffer(`public/${rel}`, target);
+    } catch {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Not found");
+      return;
+    }
+  } else {
+    if (!existsSync(target)) {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Not found");
+      return;
+    }
+    body = await readFile(target);
+  }
+
   res.writeHead(200, {
     "Content-Type": MIME[extname(target)] ?? "application/octet-stream",
   });
@@ -134,6 +155,12 @@ export function createPanelServer(
 
       if (path === "/api/system") {
         return sendJson(res, 200, await service.system());
+      }
+
+      // Update & announcement channel (silent on failure → null status).
+      if (path === "/api/updates") {
+        const force = url.searchParams.get("force") === "1";
+        return sendJson(res, 200, { status: await checkForUpdate({ force }) });
       }
 
       if (path === "/api/snapshot") {
@@ -243,6 +270,48 @@ export function createPanelServer(
       if (path === "/api/schedule" && req.method === "POST") {
         const body = (await readBody(req)) as Record<string, unknown>;
         return sendJson(res, 200, service.setSchedule(body));
+      }
+
+      // ---- Restore a snapshot -------------------------------------------
+      if (path === "/api/restore" && req.method === "POST") {
+        const body = (await readBody(req)) as { id?: string };
+        if (!body.id) return sendJson(res, 400, { error: "Expected { id }." });
+        return sendJson(res, 200, await service.restoreSnapshot(body.id));
+      }
+
+      // ---- Exec a one-off command inside a container --------------------
+      if (path === "/api/exec" && req.method === "POST") {
+        const body = (await readBody(req)) as { name?: string; command?: string };
+        if (!body.name || !body.command) return sendJson(res, 400, { error: "Expected { name, command }." });
+        return sendJson(res, 200, await service.execOnce(body.name, body.command));
+      }
+
+      // ---- Compose file editor & lifecycle ------------------------------
+      if (path === "/api/compose/list") {
+        return sendJson(res, 200, { files: service.findComposeFiles() });
+      }
+      if (path === "/api/compose" && req.method === "POST") {
+        const body = (await readBody(req)) as { path?: string; content?: string };
+        if (!body.path || typeof body.content !== "string") return sendJson(res, 400, { error: "Expected { path, content }." });
+        return sendJson(res, 200, service.writeComposeFile(body.path, body.content));
+      }
+      if (path === "/api/compose") {
+        const file = url.searchParams.get("path") ?? "";
+        if (!file) return sendJson(res, 400, { error: "Missing ?path=" });
+        return sendJson(res, 200, service.readComposeFile(file));
+      }
+      if (path === "/api/compose/action" && req.method === "POST") {
+        const body = (await readBody(req)) as { path?: string; action?: string };
+        const valid = ["up", "down", "restart"];
+        if (!body.path || !valid.includes(body.action ?? "")) return sendJson(res, 400, { error: "Expected { path, action: up|down|restart }." });
+        return sendJson(res, 200, await service.composeAction(body.path, body.action as "up" | "down" | "restart"));
+      }
+
+      // ---- Attach an extra volume (guided recreate) ---------------------
+      if (path === "/api/volume/attach" && req.method === "POST") {
+        const body = (await readBody(req)) as { name?: string; hostPath?: string; containerPath?: string; readOnly?: boolean };
+        if (!body.name || !body.hostPath || !body.containerPath) return sendJson(res, 400, { error: "Expected { name, hostPath, containerPath, readOnly? }." });
+        return sendJson(res, 200, await service.attachVolume(body.name, body.hostPath, body.containerPath, Boolean(body.readOnly)));
       }
 
       if (path === "/api/action" && req.method === "POST") {

@@ -15,6 +15,9 @@
   <body>
     <div class="watermark" aria-hidden="true"></div>
 
+    <!-- Update / announcement banner (populated by app.js from /api/updates) -->
+    <div id="update-banner" class="update-banner hidden" role="status" aria-live="polite"></div>
+
     <header class="topbar">
       <div class="brand">
         <span class="logo">SOY<span class="accent">R</span>AGE</span>
@@ -26,6 +29,7 @@
         <button class="tab active" data-tab="overview">Overview</button>
         <button class="tab" data-tab="terminal">Terminal</button>
         <button class="tab" data-tab="files">Files</button>
+        <button class="tab" data-tab="compose">Compose</button>
         <button class="tab" data-tab="backups">Backups</button>
         <button class="tab" data-tab="system">System</button>
         <button class="tab" data-tab="alerts">Alerts <span id="alert-count" class="pill hidden">0</span></button>
@@ -127,6 +131,27 @@
         </section>
       </section>
 
+      <!-- ============ COMPOSE ============ -->
+      <section id="tab-compose" class="tabpane hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>docker-compose editor</h2>
+            <div class="tools">
+              <select id="cmp-file" class="input"></select>
+              <button id="cmp-reload" class="ghost" title="Reload">Reload</button>
+            </div>
+          </div>
+          <div class="form-row wrap">
+            <button id="cmp-save" class="primary">Save</button>
+            <button id="cmp-up" class="ghost">compose up -d</button>
+            <button id="cmp-restart" class="ghost">restart</button>
+            <button id="cmp-down" class="ghost">down</button>
+            <span id="cmp-status" class="muted"></span>
+          </div>
+          <textarea id="cmp-editor" class="editor" spellcheck="false" style="min-height:52vh"></textarea>
+        </section>
+      </section>
+
       <!-- ============ BACKUPS ============ -->
       <section id="tab-backups" class="tabpane hidden">
         <section class="panel">
@@ -162,7 +187,7 @@
           <div class="panel-head"><h2>Snapshots</h2><button id="bk-refresh" class="ghost">Refresh</button></div>
           <div class="table-wrap">
             <table class="grid">
-              <thead><tr><th>Created</th><th>Container</th><th>Type</th><th>Reference</th><th>Destination</th><th class="right">Size</th></tr></thead>
+              <thead><tr><th>Created</th><th>Container</th><th>Type</th><th>Reference</th><th>Destination</th><th class="right">Size</th><th class="right">Restore</th></tr></thead>
               <tbody id="bk-list"></tbody>
             </table>
           </div>

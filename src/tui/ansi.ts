@@ -47,6 +47,9 @@ export const color = {
   gray: sgr(90),
   brightBlue: sgr(94),
   brightCyan: sgr(96),
+  brightGreen: sgr(92),
+  brightRed: sgr(91),
+  brightYellow: sgr(93),
   /** SoyRage accent (256-colour blue). */
   accent: (s: string) => `${ESC}38;5;39m${s}${ESC}0m`,
   /** Inverse video for selection highlight. */

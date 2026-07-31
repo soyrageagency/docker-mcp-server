@@ -31,7 +31,7 @@ export const BRAND = Object.freeze({
   url: "https://soyrage.es/",
   donate: "https://www.paypal.com/paypalme/soyrageagency",
   tagline: "Chat with your Docker host — safely.",
-  version: "1.0.0",
+  version: "1.1.0",
 });
 
 /**

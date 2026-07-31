@@ -22,8 +22,9 @@ import { Logger } from "../logger.js";
 import { DockerClient } from "../docker/client.js";
 import { PanelService } from "../panel/service.js";
 import { TuiApp } from "./app.js";
+import { isEntryPoint } from "../entry.js";
 
-async function main(): Promise<void> {
+export async function runTui(): Promise<void> {
   const config = loadConfig();
   // Diagnostics must stay quiet: the TUI owns the terminal.
   const logger = new Logger("error", "tui");
@@ -62,9 +63,13 @@ async function main(): Promise<void> {
   await app.start();
 }
 
-main().catch((error) => {
-  process.stderr.write(
-    `Fatal: ${error instanceof Error ? error.stack : error}\n`,
-  );
-  process.exit(1);
-});
+// Run directly when invoked as the `docker-mcp-tui` binary; stay quiet when the
+// unified `ragedocker` launcher imports runTui() and calls it itself.
+if (isEntryPoint(import.meta.url)) {
+  runTui().catch((error) => {
+    process.stderr.write(
+      `Fatal: ${error instanceof Error ? error.stack : error}\n`,
+    );
+    process.exit(1);
+  });
+}

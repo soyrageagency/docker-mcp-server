@@ -13,13 +13,15 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type Docker from "dockerode";
 import type { AppConfig } from "../config.js";
 import type { Logger } from "../logger.js";
 import { DockerClient, normalizeName } from "../docker/client.js";
 import { BRAND } from "../branding.js";
+import { activeAccount } from "../ai/credentials.js";
+import { chat } from "../ai/provider.js";
 
 /** Compact container row for the UI, including live usage when available. */
 export interface ContainerDTO {
@@ -333,7 +335,7 @@ export class PanelService {
     })) as unknown as Buffer;
     return Buffer.from(raw)
       .toString("utf8")
-      .replace(/[ --]/g, "")
+      .replace(/[\x00-\x08\x0e-\x1f]/g, "")
       .trim();
   }
 
@@ -575,7 +577,15 @@ export class PanelService {
 
   /** Whether the AI copilot is available (demo simulates it). */
   get aiEnabled(): boolean {
-    return this.demo || Boolean(this.config.panel.aiEndpoint);
+    return this.demo || Boolean(this.config.panel.aiEndpoint) || Boolean(activeAccount());
+  }
+
+  /** A short human label for the active model, for the status bar. */
+  get aiLabel(): string {
+    if (this.demo) return "demo AI";
+    const account = activeAccount();
+    if (account) return `${account.label} · ${account.model}`;
+    return this.config.panel.aiEndpoint ? `env · ${this.config.panel.aiModel}` : "";
   }
 
   /**
@@ -592,11 +602,13 @@ export class PanelService {
   ): Promise<{ command?: string; explanation?: string; content?: string; text?: string; source: string }> {
     if (this.demo) return demoAi(mode, prompt, context);
 
-    const endpoint = this.config.panel.aiEndpoint;
-    if (!endpoint) {
+    // Prefer whatever `ragedocker ia login` configured; fall back to the legacy
+    // env-var endpoint so an existing server deployment is unchanged.
+    const account = activeAccount();
+    if (!account) {
       return {
         source: "unconfigured",
-        text: "AI is not configured. Set DOCKER_MCP_AI_ENDPOINT / DOCKER_MCP_AI_KEY / DOCKER_MCP_AI_MODEL — works with OpenAI, Ollama, LM Studio or any OpenAI-compatible API.",
+        text: 'AI is not configured. Run "ragedocker ia login" to sign in to Claude or ChatGPT — or set DOCKER_MCP_AI_ENDPOINT / _KEY / _MODEL for any OpenAI-compatible API.',
         command: heuristicCommand(prompt),
       };
     }
@@ -608,7 +620,7 @@ export class PanelService {
         : `You are a Docker CLI copilot. The user describes what they want in plain language. Reply ONLY with a compact JSON object {"command":"<one safe docker command>","explanation":"<one short sentence>"}. Available containers: ${names}. Never invent destructive flags.`;
     const user = mode === "edit" ? `Instruction: ${prompt}\n\n--- FILE ---\n${context}` : prompt;
 
-    const raw = await this.callLLM(endpoint, system, user);
+    const raw = await chat(account, system, user);
     if (mode === "edit") return { source: "ai", content: stripFences(raw) };
     // command mode: try to parse the JSON object.
     try {
@@ -619,28 +631,6 @@ export class PanelService {
     }
   }
 
-  /** Minimal OpenAI-compatible chat call. */
-  private async callLLM(endpoint: string, system: string, user: string): Promise<string> {
-    const url = endpoint.replace(/\/$/, "") + "/chat/completions";
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(this.config.panel.aiKey ? { Authorization: `Bearer ${this.config.panel.aiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        model: this.config.panel.aiModel,
-        temperature: 0.1,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!res.ok) throw new Error(`AI endpoint returned ${res.status}`);
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return data.choices?.[0]?.message?.content ?? "";
-  }
 
   /** Run a command inside a container and return its combined output. */
   private async exec(handle: Docker.Container, cmd: string[]): Promise<string> {
@@ -653,7 +643,7 @@ export class PanelService {
         resolvePromise(
           Buffer.concat(chunks)
             .toString("utf8")
-            .replace(/[ --]/g, ""),
+            .replace(/[\x00-\x08\x0e-\x1f]/g, ""),
         ),
       );
       stream.on("error", rejectPromise);
@@ -867,6 +857,140 @@ export class PanelService {
     if (this.demo) return demoVolumes();
     const vols = await this.docker.listVolumes();
     return vols.map((v) => ({ name: v.Name, driver: v.Driver ?? "—", mountpoint: v.Mountpoint ?? "—" }));
+  }
+
+  // ---- Restore · exec · compose · volumes management ---------------------
+
+  /**
+   * Restore a recorded snapshot. Non-destructive by design: a commit snapshot
+   * launches a *new* container from the image (the image's CMD/ENTRYPOINT are
+   * preserved by `commit`), and an export tar is imported as a new image you can
+   * then run. Nothing existing is overwritten.
+   */
+  async restoreSnapshot(id: string): Promise<{ ok: boolean; message: string; container?: string; image?: string }> {
+    const snap = this.snapshotLog.find((s) => s.id === id);
+    if (!snap) throw new Error(`Snapshot ${id} not found.`);
+    if (this.config.readOnly) throw new Error("Server is read-only; restore is disabled.");
+    const ts = fileStamp();
+    if (this.demo) {
+      const container = `${snap.container}-restored-${ts}`;
+      this.addAlert({ level: "info", source: snap.container, rule: "restore", message: `Restored ${snap.ref} → ${container}` });
+      return { ok: true, message: `(demo) Restored ${snap.ref} as ${container}`, container };
+    }
+    if (snap.type === "commit") {
+      const name = `${snap.container}-restored-${ts}`;
+      const res = await this.spawnDocker(["run", "-d", "--name", name, snap.ref], `docker run -d --name ${name} ${snap.ref}`);
+      if (res.code !== 0) throw new Error(res.output);
+      this.addAlert({ level: "info", source: snap.container, rule: "restore", message: `Restored ${snap.ref} → ${name}` });
+      return { ok: true, message: `Started ${name} from ${snap.ref}.`, container: name };
+    }
+    const image = `soyrage-restore/${snap.container}:${ts}`;
+    const res = await this.spawnDocker(["import", snap.ref, image], `docker import ${snap.ref} ${image}`);
+    if (res.code !== 0) throw new Error(res.output);
+    this.addAlert({ level: "info", source: snap.container, rule: "restore", message: `Imported ${snap.ref} → ${image}` });
+    return { ok: true, message: `Imported ${snap.ref} as image ${image}. Run it with your original command.`, image };
+  }
+
+  /** One-off command inside a running container (`docker exec … sh -lc`). */
+  async execOnce(name: string, command: string): Promise<CommandResult> {
+    if (!command.trim()) return { command, code: 1, output: "Empty command." };
+    if (this.config.readOnly) return { command, code: 1, output: "Server is read-only; exec is blocked." };
+    if (this.demo) return { command: `docker exec ${name} ${command}`, code: 0, output: demoExec(name, command) };
+    return this.spawnDocker(["exec", name, "sh", "-lc", command], `docker exec ${name} ${command}`);
+  }
+
+  /** Candidate compose files near the working directory (for the editor pickers). */
+  findComposeFiles(): string[] {
+    if (this.demo) return ["/srv/apps/web/docker-compose.yml", "/srv/apps/db/compose.yaml"];
+    const names = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+    const dirs = [process.cwd(), this.config.panel.backupDir];
+    const found = new Set<string>();
+    for (const dir of dirs) {
+      const base = isAbsolute(dir) ? dir : resolve(process.cwd(), dir);
+      for (const n of names) { const p = resolve(base, n); if (existsSync(p)) found.add(p); }
+    }
+    return [...found];
+  }
+
+  private isComposePath(path: string): boolean {
+    return /(^|[\\/])(docker-)?compose\.ya?ml$/i.test(path);
+  }
+
+  /** Read a host compose file (compose-named, ≤512 KB). */
+  readComposeFile(path: string): { path: string; content: string } {
+    if (this.demo) return { path, content: DEMO_COMPOSE };
+    if (!this.isComposePath(path)) throw new Error("Only docker-compose / compose YAML files can be edited here.");
+    const abs = resolve(path);
+    if (!existsSync(abs)) throw new Error(`No such file: ${abs}`);
+    if (statSync(abs).size > 512 * 1024) throw new Error("File too large (>512 KB).");
+    return { path: abs, content: readFileSync(abs, "utf8") };
+  }
+
+  /** Write a host compose file (compose-named, ≤512 KB). Blocked when read-only. */
+  writeComposeFile(path: string, content: string): { path: string; bytes: number } {
+    if (this.config.readOnly) throw new Error("Server is read-only; editing is disabled.");
+    if (this.demo) return { path, bytes: Buffer.byteLength(content) };
+    if (!this.isComposePath(path)) throw new Error("Only docker-compose / compose YAML files can be edited here.");
+    if (Buffer.byteLength(content) > 512 * 1024) throw new Error("Content too large (>512 KB).");
+    const abs = resolve(path);
+    writeFileSync(abs, content, "utf8");
+    this.addAlert({ level: "info", source: "system", rule: "compose", message: `Edited compose file ${abs}` });
+    return { path: abs, bytes: Buffer.byteLength(content) };
+  }
+
+  /** `docker compose` lifecycle against a specific file. */
+  async composeAction(path: string, action: "up" | "down" | "restart"): Promise<CommandResult> {
+    if (this.config.readOnly) throw new Error("Server is read-only; compose actions are disabled.");
+    if (this.demo) return { command: `docker compose -f ${path} ${action}`, code: 0, output: `(demo) compose ${action} completed.` };
+    const abs = resolve(path);
+    const tail = action === "up" ? ["up", "-d"] : action === "down" ? ["down"] : ["restart"];
+    return this.spawnDocker(["compose", "-f", abs, ...tail], `docker compose -f ${abs} ${tail.join(" ")}`);
+  }
+
+  /**
+   * Attach an extra host volume to a container by recreating it from its own
+   * image with the same env / ports / network / restart policy plus the new
+   * bind. The original is stopped and kept (renamed `<name>-preattach-<ts>`) so
+   * the change is reversible.
+   */
+  async attachVolume(name: string, hostPath: string, containerPath: string, readOnly = false): Promise<{ ok: boolean; message: string; container: string; backup?: string }> {
+    if (this.config.readOnly) throw new Error("Server is read-only; attaching volumes is disabled.");
+    if (!hostPath.trim() || !containerPath.trim()) throw new Error("Both a host path and a container path are required.");
+    const bind = `${hostPath.trim()}:${containerPath.trim()}${readOnly ? ":ro" : ""}`;
+    const ts = fileStamp();
+    if (this.demo) return { ok: true, message: `(demo) Recreated ${name} with ${bind}.`, container: name, backup: `${name}-preattach-${ts}` };
+
+    const handle = await this.docker.resolveContainer(name);
+    const d = await handle.inspect();
+    const image = d.Config?.Image;
+    if (!image) throw new Error("Could not determine the container's image.");
+    const backupName = `${name}-preattach-${ts}`;
+    try { await handle.stop({ t: 10 }); } catch { /* may already be stopped */ }
+    await handle.rename({ name: backupName });
+    try {
+      const created = await this.docker.raw.createContainer({
+        name,
+        Image: image,
+        Env: d.Config?.Env ?? [],
+        Cmd: d.Config?.Cmd ?? undefined,
+        Entrypoint: d.Config?.Entrypoint ?? undefined,
+        Labels: d.Config?.Labels ?? undefined,
+        ExposedPorts: d.Config?.ExposedPorts ?? undefined,
+        HostConfig: {
+          Binds: [...(d.HostConfig?.Binds ?? []), bind],
+          PortBindings: d.HostConfig?.PortBindings ?? undefined,
+          NetworkMode: d.HostConfig?.NetworkMode ?? undefined,
+          RestartPolicy: d.HostConfig?.RestartPolicy ?? undefined,
+        },
+      });
+      await created.start();
+    } catch (err) {
+      // Roll the name back so the original is usable again.
+      try { await handle.rename({ name }); } catch { /* best effort */ }
+      throw new Error(`Recreate failed (${(err as Error).message}); original left as-is.`);
+    }
+    this.addAlert({ level: "info", source: name, rule: "volume", message: `Attached ${bind}; previous kept as ${backupName}.` });
+    return { ok: true, message: `Recreated ${name} with ${bind}. Previous container kept as ${backupName}.`, container: name, backup: backupName };
   }
 
   /**
@@ -1362,3 +1486,41 @@ function demoVolumes(): VolumeDTO[] {
     { name: "demo-cache-data", driver: "local", mountpoint: "/var/lib/docker/volumes/demo-cache-data/_data" },
   ];
 }
+
+/** A believable exec response for demo mode. */
+function demoExec(name: string, command: string): string {
+  const cmd = command.trim();
+  if (/^ls\b/.test(cmd)) return "bin  dev  etc  home  lib  proc  root  srv  tmp  usr  var";
+  if (/^ps\b/.test(cmd)) return "PID   USER     TIME  COMMAND\n    1 root      0:04  nginx: master process\n   31 nginx     0:12  nginx: worker process";
+  if (/^cat\s+\/etc\/hostname/.test(cmd)) return name;
+  if (/^env\b/.test(cmd)) return "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nHOSTNAME=" + name + "\nNODE_ENV=production";
+  if (/^whoami\b/.test(cmd)) return "root";
+  if (/^df\b/.test(cmd)) return "Filesystem     1K-blocks    Used Available Use% Mounted on\noverlay         61202244 8123456  49876543  15% /";
+  return `$ ${cmd}\n(demo container — command acknowledged)`;
+}
+
+/** A sample compose file shown in demo mode. */
+const DEMO_COMPOSE = `services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    restart: unless-stopped
+  api:
+    image: soyrage/api:1.8.2
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+`;

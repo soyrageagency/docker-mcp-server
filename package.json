@@ -1,6 +1,6 @@
 {
   "name": "docker-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Chat with your Docker host. A Model Context Protocol (MCP) server that lets any LLM list containers, read logs, manage lifecycle and deploy Compose stacks — safely. Built by SoyRage Agency.",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
@@ -26,6 +26,7 @@
     "containers"
   ],
   "bin": {
+    "ragedocker": "dist/ragedocker.js",
     "docker-mcp-server": "dist/index.js",
     "docker-mcp-panel": "dist/panel/index.js",
     "docker-mcp-tui": "dist/tui/index.js",
@@ -56,6 +57,10 @@
     "tui": "node dist/tui/index.js",
     "tui:dev": "tsx src/tui/index.ts",
     "tui:demo": "node -e \"process.env.DOCKER_MCP_PANEL_DEMO='true';import('./dist/tui/index.js')\"",
+    "ragedocker": "node dist/ragedocker.js",
+    "ia": "node dist/ragedocker.js ia",
+    "doctor": "node dist/ragedocker.js doctor",
+    "build:sea": "node scripts/build-sea.mjs",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
     "setup": "npm run build && node scripts/install.mjs",
     "install:claude": "node scripts/install.mjs",
@@ -71,7 +76,9 @@
   "devDependencies": {
     "@types/dockerode": "^3.3.31",
     "@types/node": "^20.14.0",
+    "esbuild": "^0.28.1",
     "playwright": "^1.61.1",
+    "postject": "^1.0.0-alpha.6",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"
   }
