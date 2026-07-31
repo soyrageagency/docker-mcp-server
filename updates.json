@@ -1,0 +1,42 @@
+{
+  "product": "docker-mcp-server",
+  "latest": "1.1.0",
+  "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-07-30",
+      "title": "Standalone install, an AI copilot you sign into, a container action menu, and live updates",
+      "highlights": [
+        "Standalone binaries — install with no Node/npm: one `ragedocker` executable per OS",
+        "Unified launcher: everything through `ragedocker` (tui · panel · mcp · ia · doctor)",
+        "Sign in to Claude or ChatGPT: `ragedocker ia login` (keys stored 0600, never echoed)",
+        "TUI action menu (Enter/m) over any container + animated status icons (breathe / spin / blink)",
+        "Open a shell, edit docker-compose, snapshot & restore, and attach extra volumes — in TUI and panel",
+        "Live update channel with changelogs in both the terminal and the web panel"
+      ],
+      "url": "https://github.com/soyrageagency/docker-mcp-server/releases/tag/v1.1.0",
+      "critical": false
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-06-01",
+      "title": "First public release",
+      "highlights": [
+        "MCP server, web panel and terminal dashboard over one safe Docker client",
+        "Read-only mode and a container allowlist for locked-down hosts"
+      ],
+      "url": "https://github.com/soyrageagency/docker-mcp-server/releases/tag/v1.0.0",
+      "critical": false
+    }
+  ],
+  "announcements": [
+    {
+      "id": "welcome-1_1",
+      "date": "2026-07-30",
+      "title": "Thanks for running Docker MCP Server",
+      "body": "Built by SoyRage Agency. If it saves you time, a star on GitHub helps others find it.",
+      "url": "https://github.com/soyrageagency/docker-mcp-server",
+      "level": "info"
+    }
+  ]
+}

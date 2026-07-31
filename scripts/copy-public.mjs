@@ -8,7 +8,7 @@
  * Crafted by SoyRage Agency — https://soyrage.es/
  */
 
-import { cpSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,3 +24,12 @@ if (!existsSync(from)) {
 mkdirSync(dirname(to), { recursive: true });
 cpSync(from, to, { recursive: true });
 console.log(`[copy-public] Copied panel assets → ${to}`);
+
+// Ship the update channel next to the built code so it can be read offline.
+const channelFrom = resolve(root, "updates.json");
+if (existsSync(channelFrom)) {
+  const channelTo = resolve(root, "dist/updates.json");
+  mkdirSync(dirname(channelTo), { recursive: true });
+  copyFileSync(channelFrom, channelTo);
+  console.log(`[copy-public] Copied update channel → ${channelTo}`);
+}

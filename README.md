@@ -65,7 +65,25 @@
 
 ## ⚡ Quick install (one command)
 
-New to this? The installer clones the project, builds it, and **configures Claude Desktop for you** — no manual JSON editing. You only need [Git](https://git-scm.com/) and [Node.js ≥ 18](https://nodejs.org/).
+### Option A — standalone binary (no Node, no npm) · *recommended for the CLI/TUI/panel*
+
+Since **v1.1** you can install a single self-contained `ragedocker` executable — a Node runtime and the whole app fused into one file. Nothing else to install.
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/soyrageagency/docker-mcp-server/main/scripts/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```sh
+curl -fsSL https://raw.githubusercontent.com/soyrageagency/docker-mcp-server/main/scripts/install.sh | sh
+```
+
+Then just run `ragedocker` for an interactive menu, or `ragedocker tui` / `ragedocker panel` / `ragedocker ia login`. Re-run the installer any time to update. *(How it's built and how to reuse this across repos: [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md).)*
+
+### Option B — via Node · *configures Claude Desktop for you*
+
+Prefer the MCP-server-for-Claude-Desktop path? The installer clones the project, builds it, and **configures Claude Desktop for you** — no manual JSON editing. You need [Git](https://git-scm.com/) and [Node.js ≥ 18](https://nodejs.org/).
 
 **Windows (PowerShell):**
 ```powershell
@@ -145,9 +163,35 @@ Beyond the conversational interface, the project ships a **minimalist web dashbo
 
 ```bash
 npm run build
-npm run panel          # → http://127.0.0.1:4600
+ragedocker panel       # → http://127.0.0.1:4600   (or: npm run panel)
 npm run panel:demo     # same, but with realistic mock data (no daemon needed)
 ```
+
+> **One command for everything.** Since **v1.1** a single `ragedocker` launcher fronts the whole toolkit — run `ragedocker` with no arguments for an interactive menu, or:
+>
+> ```bash
+> ragedocker tui        # the lazydocker-style terminal dashboard
+> ragedocker panel      # the web panel + monitoring API
+> ragedocker mcp        # the MCP server (Claude Desktop, Cursor, Continue…)
+> ragedocker ia login   # sign in to Claude or ChatGPT (see below)
+> ragedocker doctor     # check Docker, the AI and your configuration
+> ```
+>
+> The original `docker-mcp-tui` / `docker-mcp-panel` / `docker-mcp-server` binaries still work as aliases.
+
+### 🔑 AI copilot — sign in once with `ragedocker ia login`
+
+The TUI copilot (press `a`) and the panel's AI terminal need a model. A short wizard sets one up — pick **Claude** (Anthropic, used natively) or **ChatGPT** (OpenAI), paste your key, and it's verified before saving:
+
+```bash
+ragedocker ia login        # set up your main AI account
+ragedocker ia secundaria   # add a second account to switch to
+ragedocker ia use secondary
+ragedocker ia list         # show what's configured (keys masked)
+ragedocker ia test         # call the model once and report back
+```
+
+Keys are stored at `~/.ragedocker/ai.json`, **owner‑readable only (0600)**, and are never echoed or logged. The legacy `DOCKER_MCP_AI_*` environment variables still take precedence for unattended deployments.
 
 <div align="center">
 
@@ -226,7 +270,7 @@ The panel and terminal can control your host, so treat access like SSH.
 Prefer the terminal? Launch **`docker-mcp-tui`** — a creative, [lazydocker](https://github.com/jesseduffield/lazydocker)‑style dashboard that opens with a SoyRage Agency welcome and then drops you into a live, keyboard‑driven view. It’s hand‑rolled ANSI (no curses library), so it adds **zero dependencies**.
 
 ```bash
-npm run tui        # → interactive terminal dashboard
+ragedocker tui     # → interactive terminal dashboard  (or: npm run tui)
 npm run tui:demo   # same, with realistic mock data (no daemon needed)
 ```
 
@@ -245,8 +289,14 @@ npm run tui:demo   # same, with realistic mock data (no daemon needed)
 
 **AI copilot.** Press **`a`** (or `:`) to open the copilot bar and type what you want — *“restart the web container”*, *“stop the backup job”*, *“show every container”*. The copilot turns it into the exact `docker` command, shows it to you, and runs it only after you confirm with **`y`**. It speaks to any OpenAI‑compatible endpoint (`DOCKER_MCP_AI_ENDPOINT` / `DOCKER_MCP_AI_KEY` / `DOCKER_MCP_AI_MODEL`) and falls back to a built‑in rule engine in demo mode, so you can try it with **zero setup**.
 
-**Keys:** `↑/↓` (or `j/k`) navigate · `l` toggle logs · **`a` AI copilot** · `S` start · `s` stop · `R` restart · `r` refresh · `?` help · `q` quit.
-Live CPU/memory gauges refresh automatically; read‑only mode hides the action keys (the copilot still explains, but never runs a mutating command).
+**Action menu.** Press **`Enter`** (or **`m`**) over any container to open a menu of everything you can do to it — logs, inspect, **shell**, start/stop/restart, snapshot, **restore**, **attach a volume**, **edit compose**, copy id — arrow‑key navigable, so you never have to memorise a key. Every action also has a one‑key shortcut for power users.
+
+**Animated status.** Containers no longer show a plain red/green dot: healthy ones *breathe* (`●`↔`◉`), starting/restarting ones spin (`⠋⠙⠹…`), unhealthy ones blink (`▲`), paused show `⏸`, exited `○` — a glance across the list reads like a heartbeat monitor.
+
+**Keys:** `Enter`/`m` **menu** · `↑/↓` (or `j/k`) navigate · `g/G` top/bottom · **`/` filter** · `o` sort (`O` reverse) · `space` pause live updates · `l` logs (`f` follow, `+/-` tail) · **`i` inspect** · **`e` shell** · **`c` edit compose** · `y` copy id · `n`/`v`/`A` networks/volumes/alerts · **`a` AI** · `S`/`s`/`R` lifecycle · `b` snapshot · **`B` restore** · **`V` attach volume** · `u` what's new · `?` help · `q` quit.
+Live CPU/memory gauges refresh automatically; the details pane shows lazydocker‑level info (health, uptime, command, restart policy, networks, mounts, env), lifecycle actions play a spinner animation, and read‑only mode hides the mutating keys (the copilot still explains, but never runs a mutating command).
+
+**Update notices.** When a new version is published, both the TUI (a banner + `u` for the changelog) and the web panel (a dismissable banner) tell you — read from a single [`updates.json`](./updates.json) in the repo. It's silent on any failure and can be turned off with `DOCKER_MCP_NO_UPDATE_CHECK=1`.
 
 ---
 

@@ -29,6 +29,10 @@ const ICONS = {
   save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
   sparkles: '<path d="M9.9 2.6 8.5 6.4 4.7 7.8l3.8 1.4 1.4 3.8 1.4-3.8 3.8-1.4-3.8-1.4z"/><path d="M18 7v4"/><path d="M20 9h-4"/><path d="M17 17v3"/><path d="M18.5 18.5h-3"/>',
   ai: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+  drive: '<line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/>',
+  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  rotate: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
 };
 const FILLED = new Set(["play", "stop"]);
 function icon(name) {
@@ -94,6 +98,73 @@ function switchTab(tab) {
   if (tab === "terminal") $("#term-input").focus();
   if (tab === "backups") initBackups();
   if (tab === "system") loadSystem();
+  if (tab === "compose") initCompose();
+}
+
+/* --------------------------------------------------------------- compose */
+
+let composeReady = false;
+async function initCompose() {
+  const sel = $("#cmp-file");
+  if (!composeReady) {
+    composeReady = true;
+    $("#cmp-reload").addEventListener("click", loadComposeFile);
+    sel.addEventListener("change", loadComposeFile);
+    $("#cmp-save").addEventListener("click", saveCompose);
+    $("#cmp-up").addEventListener("click", () => composeAction("up"));
+    $("#cmp-restart").addEventListener("click", () => composeAction("restart"));
+    $("#cmp-down").addEventListener("click", () => composeAction("down"));
+  }
+  try {
+    const { files } = await api("/api/compose/list");
+    sel.innerHTML = files.length
+      ? files.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join("")
+      : '<option value="">No compose files found nearby</option>';
+    if (files.length) await loadComposeFile();
+    else { $("#cmp-editor").value = ""; $("#cmp-status").textContent = "No docker-compose.yml found near the working directory."; }
+  } catch (err) {
+    $("#cmp-status").textContent = err.message;
+  }
+}
+
+async function loadComposeFile() {
+  const path = $("#cmp-file").value;
+  if (!path) return;
+  $("#cmp-status").textContent = "Loading…";
+  try {
+    const { content } = await api(`/api/compose?path=${encodeURIComponent(path)}`);
+    $("#cmp-editor").value = content;
+    $("#cmp-status").textContent = "";
+  } catch (err) {
+    $("#cmp-editor").value = "";
+    $("#cmp-status").textContent = err.message;
+  }
+}
+
+async function saveCompose() {
+  const path = $("#cmp-file").value;
+  if (!path) return;
+  $("#cmp-status").textContent = "Saving…";
+  try {
+    const r = await api("/api/compose", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path, content: $("#cmp-editor").value }) });
+    $("#cmp-status").textContent = `Saved ${r.bytes} bytes.`;
+  } catch (err) {
+    $("#cmp-status").textContent = `Save failed: ${err.message}`;
+  }
+}
+
+async function composeAction(action) {
+  const path = $("#cmp-file").value;
+  if (!path) return;
+  if (action === "down" && !confirm("compose down will stop and remove the stack's containers. Continue?")) return;
+  $("#cmp-status").textContent = `Running compose ${action}…`;
+  try {
+    const r = await api("/api/compose/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path, action }) });
+    $("#cmp-status").textContent = `compose ${action} → exit ${r.code}`;
+    await refresh();
+  } catch (err) {
+    $("#cmp-status").textContent = `compose ${action} failed: ${err.message}`;
+  }
 }
 
 /* --------------------------------------------------------------- overview */
@@ -198,6 +269,8 @@ function renderContainers(list) {
             <div class="actions">
               <button class="act" title="Details" data-details="${escapeHtml(c.name)}">${icon("info")}</button>
               <button class="act" title="Files" data-files="${escapeHtml(c.name)}">${icon("folder")}</button>
+              <button class="act" title="Shell (exec)" data-exec="${escapeHtml(c.name)}">${icon("terminal")}</button>
+              <button class="act" title="Attach volume" data-vol="${escapeHtml(c.name)}" ${disabled}>${icon("drive")}</button>
               <button class="act" title="Snapshot" data-snap="${escapeHtml(c.name)}">${icon("camera")}</button>
               <button class="act" title="Start" data-act="start" data-name="${escapeHtml(c.name)}" ${disabled}>${icon("play")}</button>
               <button class="act" title="Stop" data-act="stop" data-name="${escapeHtml(c.name)}" ${disabled}>${icon("stop")}</button>
@@ -214,6 +287,70 @@ function renderContainers(list) {
   $("#containers").querySelectorAll("[data-auto]").forEach((b) => b.addEventListener("click", () => toggleAuto(b.dataset.auto)));
   $("#containers").querySelectorAll("[data-details]").forEach((b) => b.addEventListener("click", () => showDetails(b.dataset.details)));
   $("#containers").querySelectorAll("[data-snap]").forEach((b) => b.addEventListener("click", () => quickSnapshot(b.dataset.snap)));
+  $("#containers").querySelectorAll("[data-exec]").forEach((b) => b.addEventListener("click", () => openExec(b.dataset.exec)));
+  $("#containers").querySelectorAll("[data-vol]").forEach((b) => b.addEventListener("click", () => openVolume(b.dataset.vol)));
+}
+
+/* ------------------------------------------------- exec console (drawer) */
+
+function openExec(name) {
+  openDrawer(`Shell · ${name}`, "");
+  const ro = state.meta.readOnly;
+  $("#drawer-body").innerHTML = `
+    <div class="exec-wrap">
+      <div class="muted" style="margin-bottom:8px">Runs one command via <span class="mono">docker exec ${escapeHtml(name)} sh -lc …</span>${ro ? ' — <span class="badge badge-ro">READ-ONLY</span>' : ""}</div>
+      <div class="term-out" id="exec-out" style="min-height:220px"></div>
+      <div class="term-input-wrap">
+        <span class="prompt">${icon("chevron")}</span>
+        <input id="exec-input" class="term-input" autocomplete="off" spellcheck="false" placeholder="e.g. ls -la /   ·   ps aux   ·   cat /etc/os-release" ${ro ? "disabled" : ""} />
+      </div>
+    </div>`;
+  const out = $("#exec-out");
+  const input = $("#exec-input");
+  const run = async () => {
+    const command = input.value.trim();
+    if (!command) return;
+    input.value = "";
+    out.insertAdjacentHTML("beforeend", `<div class="mono" style="color:var(--accent)">❯ ${escapeHtml(command)}</div>`);
+    try {
+      const r = await api("/api/exec", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, command }) });
+      out.insertAdjacentHTML("beforeend", `<pre class="logs" style="margin:2px 0 10px">${escapeHtml(r.output)}</pre>`);
+    } catch (err) {
+      out.insertAdjacentHTML("beforeend", `<div class="mono" style="color:var(--red)">${escapeHtml(err.message)}</div>`);
+    }
+    out.scrollTop = out.scrollHeight;
+  };
+  if (input) { input.addEventListener("keydown", (e) => { if (e.key === "Enter") run(); }); setTimeout(() => input.focus(), 40); }
+}
+
+/* --------------------------------------------- attach volume (drawer) */
+
+function openVolume(name) {
+  openDrawer(`Attach volume · ${name}`, "");
+  $("#drawer-body").innerHTML = `
+    <div class="form-col">
+      <p class="muted">Recreates <b>${escapeHtml(name)}</b> from its own image with an extra bind mount, keeping env, ports, network and restart policy. The previous container is stopped and kept as <span class="mono">${escapeHtml(name)}-preattach-…</span> so it's reversible.</p>
+      <label>Host path <input id="vol-host" class="input" placeholder="/srv/data" /></label>
+      <label>Container path <input id="vol-cont" class="input" placeholder="/data" /></label>
+      <label class="chk"><input type="checkbox" id="vol-ro" /> Read-only (:ro)</label>
+      <div class="editor-actions"><button id="vol-go" class="primary">${icon("drive")} Recreate with volume</button></div>
+      <div id="vol-status" class="ed-status muted"></div>
+    </div>`;
+  $("#vol-go").addEventListener("click", async () => {
+    const hostPath = $("#vol-host").value.trim();
+    const containerPath = $("#vol-cont").value.trim();
+    const readOnly = $("#vol-ro").checked;
+    if (!hostPath || !containerPath) { $("#vol-status").textContent = "Both paths are required."; return; }
+    if (!confirm(`Recreate ${name} with ${hostPath}:${containerPath}${readOnly ? " (ro)" : ""}? The container will be restarted.`)) return;
+    $("#vol-go").disabled = true; $("#vol-status").textContent = "Recreating…";
+    try {
+      const r = await api("/api/volume/attach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, hostPath, containerPath, readOnly }) });
+      $("#vol-status").textContent = r.message;
+      await refresh();
+    } catch (err) {
+      $("#vol-status").textContent = `Failed: ${err.message}`;
+    } finally { $("#vol-go").disabled = false; }
+  });
 }
 
 function renderImages(list) {
@@ -660,6 +797,7 @@ async function quickSnapshot(name) {
 async function loadSnapshots() {
   try {
     const { snapshots } = await api("/api/backups");
+    const ro = state.meta.readOnly;
     $("#bk-list").innerHTML = snapshots.length
       ? snapshots.map((s) => `<tr>
           <td class="mono">${escapeHtml(new Date(s.createdAt).toLocaleString())}</td>
@@ -667,10 +805,23 @@ async function loadSnapshots() {
           <td><span class="tagpill">${escapeHtml(s.type)}</span></td>
           <td class="mono">${escapeHtml(s.ref)}</td>
           <td class="muted">${escapeHtml(s.destination)}</td>
-          <td class="right mono">${bytes(s.sizeBytes)}</td></tr>`).join("")
-      : '<tr><td colspan="6" class="muted">No snapshots yet.</td></tr>';
+          <td class="right mono">${bytes(s.sizeBytes)}</td>
+          <td class="right">${ro ? "" : `<button class="ghost sm" data-restore="${escapeHtml(s.id)}" title="Restore">${icon("rotate")} Restore</button>`}</td></tr>`).join("")
+      : '<tr><td colspan="7" class="muted">No snapshots yet.</td></tr>';
+    $("#bk-list").querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", () => restoreSnapshot(b.dataset.restore)));
   } catch (err) {
-    $("#bk-list").innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(err.message)}</td></tr>`;
+    $("#bk-list").innerHTML = `<tr><td colspan="7" class="muted">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function restoreSnapshot(id) {
+  if (!confirm("Restore this snapshot? A commit snapshot starts a NEW container; an export imports a new image. Nothing existing is overwritten.")) return;
+  try {
+    const r = await api("/api/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    alert(r.message);
+    await refresh();
+  } catch (err) {
+    alert(`Restore failed: ${err.message}`);
   }
 }
 
@@ -784,6 +935,66 @@ async function init() {
 
   refresh().catch(showError);
   setAutoRefresh(true);
+  loadUpdates();
+}
+
+/* ------------------------------------------------------ update channel */
+
+// Fetch the update/announcement channel and, if there's a newer version or a
+// fresh announcement, show a dismissable banner with the changelog. Silent on
+// any failure — a notice you never see is better than an error you do.
+async function loadUpdates() {
+  let status;
+  try {
+    ({ status } = await api("/api/updates"));
+  } catch { return; }
+  if (!status) return;
+
+  const dismissed = localStorage.getItem("rd-update-dismissed") || "";
+  const banner = $("#update-banner");
+  if (!banner) return;
+
+  if (status.hasUpdate && dismissed !== status.latest) {
+    const rel = status.newer[0] || {};
+    const items = (rel.highlights || []).slice(0, 4).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+    banner.className = "update-banner" + (status.critical ? " critical" : "");
+    banner.innerHTML = `
+      <div class="ub-main">
+        <span class="ub-tag">${status.critical ? "Security update" : "Update"}</span>
+        <span class="ub-text">
+          <b>${escapeHtml(status.product || "Docker MCP Server")} ${escapeHtml(status.latest)}</b> is available
+          <span class="muted">(you have ${escapeHtml(status.current)})</span>
+          — ${escapeHtml(rel.title || "see what changed")}
+        </span>
+      </div>
+      ${items ? `<ul class="ub-list">${items}</ul>` : ""}
+      <div class="ub-actions">
+        ${rel.url ? `<a class="primary sm" href="${escapeHtml(rel.url)}" target="_blank" rel="noreferrer">View release ↗</a>` : ""}
+        <button class="ghost sm" id="ub-dismiss">Dismiss</button>
+      </div>`;
+    banner.classList.remove("hidden");
+    const btn = $("#ub-dismiss");
+    if (btn) btn.addEventListener("click", () => { localStorage.setItem("rd-update-dismissed", status.latest); banner.classList.add("hidden"); });
+    return;
+  }
+
+  // No version bump — surface the newest un-dismissed announcement, if any.
+  const ann = (status.announcements || [])[0];
+  if (ann && localStorage.getItem("rd-ann-dismissed") !== ann.id) {
+    banner.className = "update-banner announce" + (ann.level === "warning" ? " critical" : "");
+    banner.innerHTML = `
+      <div class="ub-main">
+        <span class="ub-tag">News</span>
+        <span class="ub-text"><b>${escapeHtml(ann.title)}</b> — ${escapeHtml(ann.body)}</span>
+      </div>
+      <div class="ub-actions">
+        ${ann.url ? `<a class="primary sm" href="${escapeHtml(ann.url)}" target="_blank" rel="noreferrer">Open ↗</a>` : ""}
+        <button class="ghost sm" id="ub-dismiss">Dismiss</button>
+      </div>`;
+    banner.classList.remove("hidden");
+    const btn = $("#ub-dismiss");
+    if (btn) btn.addEventListener("click", () => { localStorage.setItem("rd-ann-dismissed", ann.id); banner.classList.add("hidden"); });
+  }
 }
 
 function showError(err) {

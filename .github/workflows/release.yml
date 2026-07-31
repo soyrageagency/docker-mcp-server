@@ -1,0 +1,67 @@
+# Build standalone `ragedocker` binaries (Node SEA) for every OS on a tag, and
+# attach them to the GitHub Release so users can install with no Node/npm.
+#
+# Trigger: push a tag like `v1.1.0`.
+#
+# Crafted by SoyRage Agency — https://soyrage.es/
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: ragedocker-linux-x64
+          - os: macos-13          # x64
+            asset: ragedocker-macos-x64
+          - os: macos-latest      # arm64
+            asset: ragedocker-macos-arm64
+          - os: windows-latest
+            asset: ragedocker-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Build standalone binary
+        run: npm run build:sea
+      - name: Stage asset
+        shell: bash
+        run: |
+          mkdir -p out
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp build/ragedocker.exe "out/${{ matrix.asset }}"
+          else
+            cp build/ragedocker "out/${{ matrix.asset }}"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: out/${{ matrix.asset }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-assets
+          merge-multiple: true
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-assets/*
+          generate_release_notes: true
