@@ -165,31 +165,6 @@ body.locked { overflow: hidden; }
 .sugg-cmd { color: var(--text); font-size: 12.5px; }
 .sugg-desc { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 
-/* Diagonal repeated watermark for screenshots */
-.watermark {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: repeating-linear-gradient(
-    -32deg,
-    transparent 0,
-    transparent 120px,
-    rgba(17, 17, 17, 0.012) 120px,
-    rgba(17, 17, 17, 0.012) 240px
-  );
-}
-.watermark::after {
-  content: "SoyRage Agency · soyrage.es";
-  position: fixed;
-  right: 22px;
-  bottom: 54px;
-  font: 600 12px var(--mono);
-  letter-spacing: 1px;
-  color: rgba(17, 17, 17, 0.16);
-  transform: rotate(-2deg);
-}
-
 /* Topbar */
 .topbar {
   position: sticky;
@@ -420,7 +395,6 @@ body.locked { overflow: hidden; }
   max-width: 1120px; margin: 0 auto; padding: 20px 26px 40px;
   color: var(--muted); font-size: 12px;
 }
-.footer .donate { color: var(--amber); font-weight: 600; }
 
 /* Update / announcement banner */
 .update-banner {

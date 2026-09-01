@@ -11,7 +11,7 @@
  *
  * Part of Docker MCP Server.
  * Crafted by SoyRage Agency — https://soyrage.es/
- * Licensed under the SoyRage Attribution License (see LICENSE).
+ * MIT licensed (see LICENSE).
  */
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";

@@ -11,7 +11,7 @@
  *
  * Part of Docker MCP Server.
  * Crafted by SoyRage Agency — https://soyrage.es/
- * Licensed under the SoyRage Attribution License (see LICENSE).
+ * MIT licensed (see LICENSE).
  */
 
 import { spawn } from "node:child_process";
@@ -1099,7 +1099,7 @@ export class TuiApp {
   }
 
   private footerBrand(cols: number): string {
-    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)} ${color.dim("·")} ${color.yellow("★")} star us ${color.dim("·")} ${color.dim("support")} ${color.brightBlue(BRAND.donate)}`;
+    const text = `${color.accent("SoyRage Agency")} ${color.dim("·")} ${color.brightBlue(BRAND.url)}`;
     return " " + text + " ".repeat(Math.max(0, cols - 2 - stripLen(text)));
   }
 }

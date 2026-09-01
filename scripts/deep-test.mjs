@@ -207,7 +207,7 @@ async function main() {
 
   const full = await mcp({}, [init, notif, listReq, aboutReq]);
   const initRes = full.find((m) => m.id === 1);
-  ok("MCP initialize returns instructions w/ SoyRage", initRes?.result?.instructions?.includes("SoyRage Agency"));
+  ok("MCP initialize returns server instructions", initRes?.result?.instructions?.includes("Docker MCP Server"));
   const tools = full.find((m) => m.id === 2)?.result?.tools?.map((t) => t.name) || [];
   eq("MCP full tool count = 21", tools.length, 21);
   ok("MCP has lifecycle tools", tools.includes("start_container") && tools.includes("deploy_stack"));

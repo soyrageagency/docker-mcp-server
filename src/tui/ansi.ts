@@ -7,7 +7,7 @@
  *
  * Part of Docker MCP Server.
  * Crafted by SoyRage Agency — https://soyrage.es/
- * Licensed under the SoyRage Attribution License (see LICENSE).
+ * MIT licensed (see LICENSE).
  */
 
 const ESC = "\x1b[";

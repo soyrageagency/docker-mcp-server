@@ -21,12 +21,7 @@ import { ComposeDriver } from "./docker/compose.js";
 import { BUILTIN_PLUGINS, selectPlugins } from "./plugins.js";
 import type { PluginInfo } from "./tools/context.js";
 import { isEntryPoint } from "./entry.js";
-import {
-  ASCII_BANNER,
-  BRAND,
-  mcpInstructions,
-  verifyAttribution,
-} from "./branding.js";
+import { ASCII_BANNER, BRAND, mcpInstructions } from "./branding.js";
 
 /** Human-readable identity advertised to MCP clients. */
 const SERVER_NAME = "docker-mcp-server";
@@ -36,15 +31,12 @@ export async function runMcp(): Promise<void> {
   const config = loadConfig();
   const logger = new Logger(config.logLevel);
 
-  // Print the SoyRage Agency welcome banner to stderr (never stdout, which is
-  // reserved for the JSON-RPC protocol stream).
+  // Print the welcome banner to stderr (never stdout, which is reserved for
+  // the JSON-RPC protocol stream).
   process.stderr.write(`${ASCII_BANNER}\n`);
   process.stderr.write(
     `  ${BRAND.product} v${BRAND.version} — by ${BRAND.author} (${BRAND.url})\n\n`,
   );
-
-  // Soft attribution-integrity guard (logs a notice if credit was stripped).
-  verifyAttribution(logger);
 
   logger.info(`Starting ${SERVER_NAME} v${SERVER_VERSION}`);
   logger.debug("Configuration", {

@@ -24,9 +24,13 @@ await page.screenshot({ path: `${OUT}/06-files.png` }); console.log("06");
 const fileRow = await page.$('#fs-list [data-name="entrypoint.sh"]');
 if (fileRow) {
   await fileRow.click();
-  await page.waitForSelector('.editor', { timeout: 5000 });
+  await page.waitForSelector('#editor', { timeout: 5000 });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/11-editor.png` }); console.log("11");
+  // Close the drawer so its scrim stops intercepting later clicks.
+  await page.click("#drawer-close").catch(() => page.keyboard.press("Escape"));
+  await page.waitForSelector("#scrim.hidden", { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
 }
 
 await page.click('.tab[data-tab="backups"]'); await page.waitForSelector("#bk-list tr"); await page.waitForTimeout(300);

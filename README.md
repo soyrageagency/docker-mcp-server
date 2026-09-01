@@ -19,12 +19,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.x-6E56CF)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/Docker-Engine%20API-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/engine/api/)
-[![License: SRAL](https://img.shields.io/badge/License-SoyRage%20Attribution-orange)](./LICENSE)
-[![Donate](https://img.shields.io/badge/Support-PayPal-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/soyrageagency)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
 ### Designed, built & maintained by **[SoyRage Agency](https://soyrage.es/)** · **https://soyrage.es/**
 
-**⚡ New here? Install in one command → [Quick install](#-quick-install-one-command).**  ·  **☕ [Support the project](https://www.paypal.com/paypalme/soyrageagency)**
+**⚡ New here? Install in one command → [Quick install](#-quick-install-one-command).**
 
 </div>
 
@@ -103,8 +102,6 @@ npm run setup          # builds + configures Claude Desktop
 Then **restart Claude Desktop** and ask: *“What Docker containers are running?”* 🎉
 The installer **backs up** your existing config and **merges** the entry, so any other MCP servers you have are preserved. Prefer to see the snippet without writing anything? `node scripts/install.mjs --print`.
 
-> 💙 If this saves you time, please [**support the project on PayPal**](https://www.paypal.com/paypalme/soyrageagency) and drop a ⭐ — it genuinely helps SoyRage Agency keep building in the open.
-
 ---
 
 ## 🧭 What is this?
@@ -146,7 +143,7 @@ Built by **[SoyRage Agency](https://soyrage.es/)** for the self‑hosting and ho
 | 🔎 **Insight** | List containers · inspect full config · live CPU/memory/network stats · tail logs with time windows · list images / networks / volumes · host summary · disk usage. |
 | ⚙️ **Lifecycle** | Start · stop · restart · remove containers — with graceful stop timeouts. |
 | 📦 **Compose** | Validate config · list services & health · **deploy** (`up -d`, optional `--build`) · tear down · restart · pull — via the official `docker compose` CLI. |
-| 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec** · soft attribution guard. |
+| 🛡️ **Safety** | Global **read‑only** mode · **container allowlist** · **opt‑in exec**. |
 | 🔌 **Transport** | Local Unix socket · Windows named pipe · secured remote **TCP + TLS**. |
 | 🎨 **Identity** | ASCII welcome banner · `about` tool · MCP `instructions` that credit **SoyRage Agency** to the AI on connect. |
 | 🖥️ **Interactive panel** | Tabbed web dashboard: live monitoring, **terminal with smart command suggestions**, **file explorer**, **snapshots & scheduled backups**, **networks/volumes**, **auto‑restart watchdog**, **alerts & log watch**, inspect, search and lifecycle actions — with a demo mode. |
@@ -352,7 +349,7 @@ VictoriaMetrics and Netdata can scrape the same endpoint.
 
 ## 🧩 Modular plugin architecture
 
-The server is assembled from independent **plugins**, each owning one capability group. Which plugins load is driven entirely by configuration, so you can expose exactly the surface you want — from *insight only* to the full toolbox — **without touching code**. This also makes the project easy to extend and hard to fork wholesale without noticing the attribution baked into the locked `about` plugin.
+The server is assembled from independent **plugins**, each owning one capability group. Which plugins load is driven entirely by configuration, so you can expose exactly the surface you want — from *insight only* to the full toolbox — **without touching code**. This also makes the project easy to extend.
 
 | Plugin | Category | Type | Tools |
 | --- | --- | --- | --- |
@@ -584,7 +581,7 @@ Tools marked **W** change state and are **hidden** when `DOCKER_MCP_READONLY=tru
 
 | Tool | Parameters | Description |
 | --- | --- | --- |
-| `about` | — | Returns the SoyRage Agency welcome banner, credits and license. The assistant uses it to introduce the server. |
+| `about` | — | Returns the welcome banner, version and credits. |
 | `list_plugins` | — | Lists the modular capability plugins and whether each is enabled. |
 
 ### Insight (read‑only)
@@ -669,7 +666,7 @@ docker-mcp-server/
 │   ├── shots.mjs             # Regenerates the panel screenshots (Playwright)
 │   └── tui-shot.mjs          # Renders the TUI to PNG (ANSI→HTML→Playwright)
 ├── src/
-│   ├── index.ts              # MCP entry point: banner, attribution guard, wiring
+│   ├── index.ts              # MCP entry point: banner, wiring
 │   ├── branding.ts           # SoyRage identity, ASCII banner, MCP instructions
 │   ├── plugins.ts            # Modular plugin catalogue & selection loader
 │   ├── config.ts             # Layered config (defaults → file → .env → env)
@@ -701,8 +698,7 @@ docker-mcp-server/
 │       └── result.ts         # MCP result helpers + error guard
 ├── docker-mcp.config.json    # (optional) your config file
 ├── .env.example              # Commented configuration template
-├── LICENSE                   # SoyRage Attribution License
-├── NOTICE                    # Attribution notice
+├── LICENSE                   # MIT License
 └── README.md
 ```
 
@@ -736,7 +732,7 @@ npm run shots      # regenerate panel screenshots (needs Playwright chromium)
 npm run clean      # remove dist/
 ```
 
-**Coding standards:** TypeScript `strict` with `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns` and `noFallthroughCasesInSwitch`. Every source file carries a SoyRage Agency attribution header.
+**Coding standards:** TypeScript `strict` with `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns` and `noFallthroughCasesInSwitch`.
 
 **Continuous integration:** [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push/PR — install, type‑check, build, then the **deep end‑to‑end suite** (`node scripts/deep-test.mjs`, **70 checks**) against a headless demo panel. Run it locally anytime:
 
@@ -811,8 +807,7 @@ Contributions are welcome! Please:
 
 1. Open an issue describing the change before large PRs.
 2. Keep the **stderr‑only logging** and **shell‑free Compose** invariants intact.
-3. Retain the **SoyRage Agency** attribution headers and runtime identity (this is a license requirement).
-4. Run `npm run typecheck && npm run build` before submitting.
+3. Run `npm run typecheck && npm run build` before submitting.
 
 ---
 
@@ -850,17 +845,7 @@ Docker MCP Server is part of a family of open‑source infrastructure tools buil
 
 ## 💙 Support the project
 
-Docker MCP Server is built and maintained in the open by **SoyRage Agency**. If it saves you time or you use it at work, please consider supporting continued development — it directly funds new features (native SMTP/S3 backups, historical charts, more integrations) and keeps the project free.
-
-<div align="center">
-
-[![Support on PayPal](https://img.shields.io/badge/☕%20Support%20on-PayPal-00457C?logo=paypal&logoColor=white&style=for-the-badge)](https://www.paypal.com/paypalme/soyrageagency)
-
-**paypal.me/soyrageagency** · a ⭐ on the repo also helps a lot!
-
-</div>
-
-Other ways to help: share it on r/selfhosted, report issues, open PRs, or hire [SoyRage Agency](https://soyrage.es/) for custom DevOps + AI tooling.
+Docker MCP Server is free and MIT licensed. If it saves you time, you can [support development on PayPal](https://www.paypal.com/paypalme/soyrageagency) — a ⭐ on the repo helps just as much.
 
 ---
 
@@ -872,9 +857,9 @@ Other ways to help: share it on r/selfhosted, report issues, open PRs, or hire [
 
 </div>
 
-This project is released under the **SoyRage Attribution License** (see [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE)). You are free to use, modify and self‑host it — **as long as the credit to SoyRage Agency stays visible**: the source headers, the `package.json` author field, and the runtime identity (ASCII banner, `about` tool and MCP `instructions`) must remain intact.
+Released under the **[MIT License](./LICENSE)** — use it, modify it, self-host it, ship it commercially.
 
-> ℹ️ **On “anti‑clone”:** software that runs on your machine can always be modified — this is not DRM. The attribution is baked in as the default everywhere so that removing it is a deliberate act, and the license makes that act a violation. For white‑labelling or a commercial license, reach out via **[soyrage.es](https://soyrage.es/)**.
+If you build something on top of it, a link back to [soyrage.es](https://soyrage.es/) is appreciated but never required.
 
 <div align="center">
 

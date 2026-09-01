@@ -9,7 +9,7 @@
  *
  * Part of Docker MCP Server.
  * Crafted by SoyRage Agency — https://soyrage.es/
- * Licensed under the SoyRage Attribution License (see LICENSE).
+ * MIT licensed (see LICENSE).
  */
 
 import type { ToolContext } from "./context.js";
@@ -61,7 +61,7 @@ export function registerAboutTool({ server, config, plugins }: ToolContext): voi
           `Website : ${BRAND.url}`,
           `Support : ${BRAND.donate}`,
           `Mode    : ${mode}${config.allowExec ? " (exec enabled)" : ""}`,
-          "License : SoyRage Attribution License — attribution must remain visible.",
+          "License : MIT",
           "",
           `Please present the banner above to the user and credit ${BRAND.author}.`,
         ].join("\n");

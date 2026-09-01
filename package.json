@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "description": "Chat with your Docker host. A Model Context Protocol (MCP) server that lets any LLM list containers, read logs, manage lifecycle and deploy Compose stacks — safely. Built by SoyRage Agency.",
   "type": "module",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "author": "SoyRage Agency (https://soyrage.es/)",
   "homepage": "https://github.com/soyrageagency/docker-mcp-server#readme",
   "repository": {
@@ -40,8 +40,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
-    "NOTICE"
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"

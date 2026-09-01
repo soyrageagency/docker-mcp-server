@@ -3,7 +3,7 @@
  *
  * Captures the TUI's ANSI output (via its non-interactive --frame/--splash
  * modes), converts the SGR colours to HTML, frames it as a terminal window
- * with a SoyRage watermark, and screenshots it with Playwright.
+ * and screenshots it with Playwright.
  *
  * Crafted by SoyRage Agency — https://soyrage.es/
  */
@@ -55,6 +55,11 @@ function convert(text) {
           }
           i += m[0].length; continue;
         }
+        // Non-SGR CSI (cursor moves, erases...): skip it, it has no visual
+        // equivalent here. Without this the scanner never advances and loops.
+        const csi = /^\x1b\[[0-9;?]*[A-Za-z]/.exec(line.slice(i));
+        if (csi) { i += csi[0].length; continue; }
+        i += 1; continue;
       }
       let j = line.indexOf("\x1b", i); if (j === -1) j = line.length;
       flush(line.slice(i, j)); i = j;
@@ -72,12 +77,10 @@ function page(ansi) {
     .barw{display:flex;gap:8px;margin-bottom:16px}
     .barw i{width:12px;height:12px;border-radius:50%}
     pre{margin:0;font-size:13px;line-height:1.38;color:#e6ebf3;white-space:pre}
-    .wm{position:absolute;right:20px;bottom:8px;font-size:11px;letter-spacing:1px;color:rgba(230,235,243,.30)}
   </style></head><body>
     <div class="term">
       <div class="barw"><i style="background:#f0625b"></i><i style="background:#f5b942"></i><i style="background:#3ad07f"></i></div>
       <pre>${convert(ansi)}</pre>
-      <div class="wm">SoyRage Agency · soyrage.es</div>
     </div>
   </body></html>`;
 }
@@ -95,9 +98,18 @@ async function shoot(browser, ansi, out) {
 
 mkdirSync("assets/screenshots", { recursive: true });
 const env = { ...process.env, DOCKER_MCP_PANEL_DEMO: "true", FORCE_COLOR: "3" };
-const frame = execSync("node dist/tui/index.js --frame", { env, encoding: "utf8" });
-const splash = execSync("node dist/tui/index.js --splash", { env, encoding: "utf8" });
-const aiFrame = execSync("node dist/tui/index.js --frame --msg", { env, encoding: "utf8" });
+// The TUI repaints in place: its output can hold several full frames separated
+// by a cursor-home escape. Keep only the last one, which is the settled view.
+const lastFrame = (out) => {
+  // The app paints a live frame (cursor-home ... erase-below) before the
+  // snapshot is written, so keep only what follows the last erase.
+  const i = out.lastIndexOf("\x1b[J");
+  return (i === -1 ? out : out.slice(i + 3)).replace(/^(?:\x1b\[[0-9;]*[A-Za-z])+/, "");
+};
+const run = (args) => execSync(`node dist/tui/index.js ${args}`, { env, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+const frame = lastFrame(run("--frame"));
+const splash = lastFrame(run("--splash"));
+const aiFrame = lastFrame(run("--frame --msg"));
 
 const browser = await chromium.launch();
 await shoot(browser, splash, "assets/screenshots/05-tui-welcome.png");

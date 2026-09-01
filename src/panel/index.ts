@@ -11,7 +11,7 @@
  *
  * Part of Docker MCP Server.
  * Crafted by SoyRage Agency — https://soyrage.es/
- * Licensed under the SoyRage Attribution License (see LICENSE).
+ * MIT licensed (see LICENSE).
  */
 
 import { loadConfig } from "../config.js";
@@ -19,7 +19,7 @@ import { Logger } from "../logger.js";
 import { DockerClient } from "../docker/client.js";
 import { PanelService } from "./service.js";
 import { startPanel } from "./server.js";
-import { ASCII_BANNER, BRAND, verifyAttribution } from "../branding.js";
+import { ASCII_BANNER, BRAND } from "../branding.js";
 import { isEntryPoint } from "../entry.js";
 
 export async function runPanel(): Promise<void> {
@@ -30,7 +30,6 @@ export async function runPanel(): Promise<void> {
   process.stdout.write(
     `  ${BRAND.product} · Interactive Panel — by ${BRAND.author} (${BRAND.url})\n\n`,
   );
-  verifyAttribution(logger);
 
   const docker = new DockerClient(config, logger);
   if (!config.panel.demo) {
