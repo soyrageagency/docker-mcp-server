@@ -19,6 +19,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.x-6E56CF)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/Docker-Engine%20API-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/engine/api/)
+[![npm](https://img.shields.io/npm/v/@soyrageagency/docker-mcp?logo=npm&color=CB3837)](https://www.npmjs.com/package/@soyrageagency/docker-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/@soyrageagency/docker-mcp?logo=npm&color=CB3837&label=downloads)](https://www.npmjs.com/package/@soyrageagency/docker-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
 ### Designed, built & maintained by **[SoyRage Agency](https://soyrage.es/)** · **https://soyrage.es/**
@@ -29,9 +31,24 @@
 
 ---
 
+## ✨ New in this release
+
+| | | |
+| :--: | --- | --- |
+| 🌐 | **Run it beside the daemon, not on your laptop** | MCP normally means one server process per client, on the client's machine — backwards when the daemon you are managing lives on a server. Set `DOCKER_MCP_HTTP=true` and one instance serves every machine on your network over HTTP. Bearer token, loopback by default. → [Run it over the network](#-run-it-over-the-network-http) |
+| 🩺 | **"Is anything wrong?" in one call** | `host_health` checks failing healthchecks, crash loops, containers down despite a restart policy, and disk pressure. `find_restart_loops` returns the offenders **with the tail of their logs**. `find_unused_resources` breaks down what is safe to clean. → [Diagnostics](#-diagnostics) |
+| 💬 | **Workflows your client offers you** | MCP **prompts** — *debug this container*, *audit my host*, *review my Compose file*, *free up disk*. You no longer have to know which tool to ask for. → [Guided workflows](#-guided-workflows-prompts--resources) |
+
+See the [**roadmap**](./ROADMAP.md) for what comes next.
+
+---
+
 ## 📑 Table of contents
 
 - [Quick install (one command)](#-quick-install-one-command)
+- [Run it over the network (HTTP)](#-run-it-over-the-network-http)
+- [Diagnostics](#-diagnostics)
+- [Guided workflows (prompts & resources)](#-guided-workflows-prompts--resources)
 - [What is this?](#-what-is-this)
 - [Why it exists](#-why-it-exists)
 - [Feature overview](#-feature-overview)
@@ -504,6 +521,102 @@ Any MCP‑capable client works the same way — register a stdio server whose co
 
 ---
 
+## 🌐 Run it over the network (HTTP)
+
+By default an MCP server talks over **stdio**: your AI client starts a copy of
+it as a child process, on your machine. That is fine for a laptop tool and
+awkward for a homelab, where the Docker daemon lives on a server — and where
+you probably want your desktop and your laptop talking to the same thing.
+
+Set one variable and it serves **Streamable HTTP** instead:
+
+```sh
+DOCKER_MCP_HTTP=true DOCKER_MCP_HTTP_TOKEN="$(openssl rand -hex 32)" npx -y @soyrageagency/docker-mcp
+```
+
+Then point any MCP client at it:
+
+```jsonc
+{
+  "mcpServers": {
+    "docker": {
+      "type": "http",
+      "url": "http://10.0.0.5:8620/mcp",
+      "headers": { "Authorization": "Bearer <the token you generated>" }
+    }
+  }
+}
+```
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `DOCKER_MCP_HTTP` | `false` | Serve over HTTP instead of stdio. |
+| `DOCKER_MCP_HTTP_HOST` | `127.0.0.1` | Interface to bind. Use `0.0.0.0` **only** behind a VPN. |
+| `DOCKER_MCP_HTTP_PORT` | `8620` | TCP port. |
+| `DOCKER_MCP_HTTP_PATH` | `/mcp` | Endpoint path. |
+| `DOCKER_MCP_HTTP_TOKEN` | *(none)* | Bearer token required on every request. **Set this.** |
+| `DOCKER_MCP_HTTP_ALLOWED_HOSTS` | derived | `Host` headers accepted (DNS-rebinding protection). |
+| `DOCKER_MCP_HTTP_ALLOWED_ORIGINS` | *(none)* | `Origin` values accepted, for browser clients. |
+
+**Read this before you expose it.** The Docker socket is root on your host, so
+anyone who can reach this port can do anything to it. It binds loopback by
+default and warns loudly if you start it without a token. Put it behind your
+VPN, and consider pairing it with `DOCKER_MCP_READONLY=true` or a container
+allowlist for anything you do not fully trust.
+
+There is also `GET /health`, which needs no token, for container healthchecks.
+
+---
+
+## 🩺 Diagnostics
+
+Three read-only tools aimed at the questions you actually ask, rather than at
+the API surface:
+
+**`host_health`** — one call that answers *is anything wrong?* Failing
+healthchecks, containers crash-looping, containers that are **down despite a
+restart policy** (the failure nobody notices), and disk pressure from
+reclaimable images and volumes. Findings ranked by severity, not a data dump.
+
+**`find_restart_loops`** — the containers that keep dying, with the exit code
+**and the tail of their logs**, which is where the reason almost always is. It
+saves the usual `ps` → `inspect` → `logs` round trip that takes three messages.
+
+**`find_unused_resources`** — what is safe to clean and what it would return,
+split into images, volumes and long-dead containers. It refuses to be glib
+about volumes: an unreferenced volume is very often the database of a stack you
+stopped on purpose, and `docker volume prune` is not undoable.
+
+All three are read-only, so they stay available with `DOCKER_MCP_READONLY=true`.
+
+---
+
+## 💬 Guided workflows (prompts & resources)
+
+Tools only answer a question you already knew how to ask. **MCP prompts** are
+the other half: your client lists them, so the workflow is discoverable without
+knowing which tool to reach for or in what order.
+
+| Prompt | What it does |
+| --- | --- |
+| **debug-container** | Works out why a container is unhealthy or restarting, from its logs, config and environment — and says so when the logs do not actually support a conclusion. |
+| **audit-host** | Read-only sweep of health, waste and risky configuration. Narrow it with `health`, `disk` or `security`. |
+| **review-compose** | Reads your Compose file and points out what bites later: `latest` tags, missing healthchecks, state not in a volume, ports on `0.0.0.0`, secrets in the file. |
+| **free-up-disk** | Finds reclaimable space and ranks it by space returned ÷ risk. |
+
+Each prompt also tells the assistant what a good answer looks like: verdict
+first, findings ranked, no padding, and an explicit instruction not to change
+anything.
+
+**Resources** expose the host as attachable context, so the model can be handed
+the current picture instead of spending three tool calls rebuilding it:
+
+- `docker://host/overview` — containers, images and disk usage in one snapshot.
+- `docker://server/capabilities` — which plugins are loaded, whether the server
+  is read-only, whether exec is allowed, and what the allowlist permits.
+
+---
+
 ## ⚙️ Configuration reference
 
 Every setting is an environment variable. A local **`.env`** file (next to `package.json`) is loaded automatically at startup; values already present in the process environment always win, so your MCP client can override the file. See [`.env.example`](./.env.example) for a commented template.
@@ -797,19 +910,16 @@ No. This server talks only to your Docker daemon and your MCP client over local 
 
 ## 🗺️ Roadmap
 
-- [x] Interactive web panel with live monitoring + historical charts
-- [x] Creative terminal UI (TUI)
-- [x] Prometheus `/metrics` endpoint (Prometheus/Zabbix ready)
-- [x] AI‑powered terminal & file editing (OpenAI‑compatible)
-- [x] One‑command installer + CI (build/typecheck/70‑check e2e)
-- [ ] `follow_logs` streaming with server‑sent progress
-- [ ] Image pull/build tools with progress reporting
-- [ ] Prune tools (`docker system prune`) gated behind explicit confirmation
-- [ ] MCP **resources** for read‑only container/stack snapshots
-- [ ] Native SMTP + direct S3/Drive backup destinations
-- [x] Published npm package for one‑line `npx` usage
+The full roadmap — what is shipped, what is next, and what is **deliberately
+not planned** — lives in [**ROADMAP.md**](./ROADMAP.md).
 
-Ideas and PRs welcome — see below.
+The short version: a multi-arch `ghcr.io` image and a socket-proxy recipe, then
+finer-grained permissions than the current read-only/read-write switch. Image
+update checking and metrics history are further out because doing them badly
+means confidently wrong answers.
+
+Explicitly not planned: replacing Portainer, autonomous action without
+confirmation, and telemetry of any kind.
 
 ---
 
