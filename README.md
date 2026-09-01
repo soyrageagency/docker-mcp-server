@@ -64,6 +64,18 @@
 
 ## ⚡ Quick install (one command)
 
+> **Already use an MCP client?** Point it at the published package — nothing to clone or build:
+>
+> ```jsonc
+> "docker": {
+>   "command": "npx",
+>   "args": ["-y", "@soyrageagency/docker-mcp"],
+>   "env": { "DOCKER_MCP_READONLY": "false" }
+> }
+> ```
+>
+> Or open the live web panel straight away: `npx -y -p @soyrageagency/docker-mcp docker-mcp-panel`
+
 ### Option A — standalone binary (no Node, no npm) · *recommended for the CLI/TUI/panel*
 
 Since **v1.1** you can install a single self-contained `ragedocker` executable — a Node runtime and the whole app fused into one file. Nothing else to install.
@@ -470,8 +482,8 @@ Edit your Claude Desktop config file:
 {
   "mcpServers": {
     "docker": {
-      "command": "node",
-      "args": ["/absolute/path/to/docker-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@soyrageagency/docker-mcp"],
       "env": {
         "DOCKER_MCP_READONLY": "false",
         "DOCKER_MCP_ALLOW_EXEC": "false",
@@ -484,11 +496,11 @@ Edit your Claude Desktop config file:
 
 > A ready‑to‑edit copy lives in [`examples/claude_desktop_config.json`](./examples/claude_desktop_config.json).
 
-Restart Claude Desktop and ask: **“What containers are running?”** — the assistant will greet you on behalf of **SoyRage Agency** and take it from there.
+No install step needed: `npx` fetches the package on first run and keeps it up to date. Restart Claude Desktop and ask: **“What containers are running?”**
 
 ### Cursor / Continue / Zed
 
-Any MCP‑capable client works the same way — register a stdio server whose command is `node` and whose argument is the absolute path to `dist/index.js`, passing the same environment variables. Consult your client’s MCP documentation for the exact config location; the server block is identical.
+Any MCP‑capable client works the same way — register a stdio server whose command is `npx` with the arguments `-y @soyrageagency/docker-mcp`, passing the same environment variables. Consult your client’s MCP documentation for the exact config location; the server block is identical.
 
 ---
 
@@ -795,7 +807,7 @@ No. This server talks only to your Docker daemon and your MCP client over local 
 - [ ] Prune tools (`docker system prune`) gated behind explicit confirmation
 - [ ] MCP **resources** for read‑only container/stack snapshots
 - [ ] Native SMTP + direct S3/Drive backup destinations
-- [ ] Published npm package for one‑line `npx` usage
+- [x] Published npm package for one‑line `npx` usage
 
 Ideas and PRs welcome — see below.
 

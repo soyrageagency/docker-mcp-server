@@ -1,0 +1,50 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.soyrageagency/docker-mcp-server",
+  "description": "Chat with your Docker host: inspect containers, read logs, view images, networks and volumes, report host and disk usage, and manage containers or Compose stacks — with read-only and allowlist safety.",
+  "status": "active",
+  "version": "1.1.0",
+  "repository": {
+    "url": "https://github.com/soyrageagency/docker-mcp-server",
+    "source": "github"
+  },
+  "websiteUrl": "https://soyrage.es/tools/docker-mcp",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@soyrageagency/docker-mcp",
+      "version": "1.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "DOCKER_HOST",
+          "description": "Docker Engine endpoint. Defaults to the local socket; set it for a remote TCP/TLS daemon.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "DOCKER_MCP_READONLY",
+          "description": "Expose only read tools — no start/stop/restart/remove, no Compose writes.",
+          "isRequired": false,
+          "default": "false",
+          "format": "boolean"
+        },
+        {
+          "name": "DOCKER_MCP_ALLOW_EXEC",
+          "description": "Allow running commands inside containers. Off by default.",
+          "isRequired": false,
+          "default": "false",
+          "format": "boolean"
+        },
+        {
+          "name": "DOCKER_MCP_DEFAULT_LOG_TAIL",
+          "description": "How many log lines to return by default.",
+          "isRequired": false,
+          "default": "200",
+          "format": "number"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.git
+.github
+assets
+docs
+examples
+*.md
+!README.md
+*.png
+*.jpg
+*.jpeg
