@@ -35,6 +35,7 @@ interface FileConfig {
   defaultLogTail?: number;
   composeCwd?: string;
   logLevel?: string;
+  http?: { enabled?: boolean; host?: string; port?: number; path?: string; token?: string; allowedHosts?: string[]; allowedOrigins?: string[] };
   plugins?: { enabled?: string[]; disabled?: string[] };
   panel?: {
     host?: string;
@@ -134,6 +135,30 @@ export interface PluginSelection {
 }
 
 /** Interactive panel settings. */
+/**
+ * Streamable HTTP transport.
+ *
+ * Off by default: the usual shape is one server per client, spoken over stdio.
+ * Turn it on to run a single shared server — next to the Docker daemon it
+ * manages — that several machines connect to over the network.
+ */
+export interface HttpConfig {
+  /** Serve MCP over HTTP instead of stdio. */
+  readonly enabled: boolean;
+  /** Interface to bind. Defaults to loopback — bind 0.0.0.0 only behind a VPN. */
+  readonly host: string;
+  /** TCP port. */
+  readonly port: number;
+  /** Endpoint path clients POST to. */
+  readonly path: string;
+  /** Optional bearer token required on every request. Strongly recommended. */
+  readonly token: string;
+  /** Host headers accepted (DNS-rebinding protection). Empty = derive from host. */
+  readonly allowedHosts: readonly string[];
+  /** Origins accepted (browser clients). Empty = no Origin restriction. */
+  readonly allowedOrigins: readonly string[];
+}
+
 export interface PanelConfig {
   readonly host: string;
   readonly port: number;
@@ -166,6 +191,8 @@ export interface AppConfig {
   readonly defaultLogTail: number;
   readonly composeCwd: string;
   readonly logLevel: LogLevel;
+  /** Streamable HTTP transport (serve the MCP over the network). */
+  readonly http: HttpConfig;
   readonly plugins: PluginSelection;
   readonly panel: PanelConfig;
 }
@@ -208,6 +235,15 @@ export function loadConfig(): AppConfig {
       disabled: Object.freeze(
         envList("DOCKER_MCP_DISABLED_PLUGINS", file.plugins?.disabled ?? []),
       ),
+    }),
+    http: Object.freeze({
+      enabled: envFlag("DOCKER_MCP_HTTP", file.http?.enabled ?? false),
+      host: envStr("DOCKER_MCP_HTTP_HOST", file.http?.host ?? "127.0.0.1"),
+      port: envInt("DOCKER_MCP_HTTP_PORT", file.http?.port ?? 8620),
+      path: envStr("DOCKER_MCP_HTTP_PATH", file.http?.path ?? "/mcp"),
+      token: envStr("DOCKER_MCP_HTTP_TOKEN", file.http?.token ?? ""),
+      allowedHosts: Object.freeze(envList("DOCKER_MCP_HTTP_ALLOWED_HOSTS", file.http?.allowedHosts ?? [])),
+      allowedOrigins: Object.freeze(envList("DOCKER_MCP_HTTP_ALLOWED_ORIGINS", file.http?.allowedOrigins ?? [])),
     }),
     panel: Object.freeze({
       host: envStr("DOCKER_MCP_PANEL_HOST", file.panel?.host ?? "127.0.0.1"),

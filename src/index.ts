@@ -21,6 +21,7 @@ import { ComposeDriver } from "./docker/compose.js";
 import { BUILTIN_PLUGINS, selectPlugins } from "./plugins.js";
 import type { PluginInfo } from "./tools/context.js";
 import { isEntryPoint } from "./entry.js";
+import { startHttpTransport } from "./transport/http.js";
 import { ASCII_BANNER, BRAND, mcpInstructions } from "./branding.js";
 
 /** Human-readable identity advertised to MCP clients. */
@@ -63,20 +64,6 @@ export async function runMcp(): Promise<void> {
     // error, which is friendlier inside a chat client than a hard crash.
   }
 
-  // Construct the MCP server and register every tool group. The `instructions`
-  // string is surfaced to the LLM by the client — it is where we make the
-  // assistant aware that this integration is a SoyRage Agency product and ask
-  // it to welcome the user with the ASCII banner.
-  const server = new McpServer(
-    {
-      name: SERVER_NAME,
-      version: SERVER_VERSION,
-    },
-    {
-      instructions: mcpInstructions(),
-    },
-  );
-
   // Resolve the modular plugin selection from configuration, then register
   // each enabled plugin. The full catalogue (with per-plugin enabled state) is
   // handed to tools via the context so `list_plugins` can report it.
@@ -90,23 +77,42 @@ export async function runMcp(): Promise<void> {
     enabled: enabledNames.has(p.name),
   }));
 
-  const context = { server, docker, compose, config, logger, plugins: pluginInfo };
-  for (const plugin of selected) plugin.register(context);
+  /**
+   * Build a fully wired server. Over HTTP this is called once per session, so
+   * it must not share mutable state between calls.
+   */
+  const createMcpServer = (): McpServer => {
+    const server = new McpServer(
+      { name: SERVER_NAME, version: SERVER_VERSION },
+      { instructions: mcpInstructions() },
+    );
+    const context = { server, docker, compose, config, logger, plugins: pluginInfo };
+    for (const plugin of selected) plugin.register(context);
+    return server;
+  };
+
   logger.info(
     config.readOnly
       ? "Tools registered in READ-ONLY mode."
       : "Tools registered in full read/write mode.",
   );
 
-  // Connect over stdio. STDOUT is reserved for JSON-RPC; logs go to STDERR.
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  logger.info("MCP server is ready and listening on stdio.");
+  // Over the network, or over stdio (STDOUT is the JSON-RPC stream; logs go
+  // to STDERR).
+  let stop: () => Promise<void>;
+  if (config.http.enabled) {
+    stop = await startHttpTransport(config.http, createMcpServer, logger);
+  } else {
+    const server = createMcpServer();
+    await server.connect(new StdioServerTransport());
+    logger.info("MCP server is ready and listening on stdio.");
+    stop = () => server.close();
+  }
 
   // Graceful shutdown so the client sees a clean disconnect.
   const shutdown = (signal: string) => {
     logger.info(`Received ${signal}, shutting down.`);
-    void server.close().finally(() => process.exit(0));
+    void stop().finally(() => process.exit(0));
   };
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
