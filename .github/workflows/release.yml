@@ -133,3 +133,34 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Announce the server on the official MCP registry. The registry only stores
+  # metadata, so it runs after npm: it validates that the package named in
+  # server.json really exists and that its `mcpName` matches.
+  #
+  # The registry is still in preview, so a failure here must not fail the
+  # release — the npm package and the GitHub release are what users install.
+  mcp-registry:
+    needs: npm
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    continue-on-error: true
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      # Keep server.json in step with the tag so the two can never drift.
+      - name: Sync server.json to the tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp
+          mv server.tmp server.json
+          cat server.json
+      # OIDC: the io.github.soyrageagency/* namespace is proven by the workflow
+      # itself, so there is no token to store or rotate.
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish
