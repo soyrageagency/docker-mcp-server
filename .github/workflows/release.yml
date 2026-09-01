@@ -84,7 +84,20 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
-      - run: npm publish --provenance --access public
+      # A tag can be re-pushed (or the job re-run) after the version is already
+      # on the registry; publishing again would just fail the whole release.
+      - id: version
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+            echo "$NAME@$VER is already published — skipping."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.published == 'false'
+        run: npm publish --provenance --access public
 
   # Multi-arch image on GitHub's own registry, tagged with the release version
   # and `latest`. Home-labbers tend to reach for this before npm.
