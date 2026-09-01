@@ -22,6 +22,7 @@ import { registerAboutTool } from "./tools/about.js";
 import { registerContainerTools } from "./tools/containers.js";
 import { registerLogTools } from "./tools/logs.js";
 import { registerDiagnosticsTools } from "./tools/diagnostics.js";
+import { registerPrompts } from "./tools/prompts.js";
 import { registerLifecycleTools } from "./tools/lifecycle.js";
 import { registerImageTools } from "./tools/images.js";
 import { registerSystemTools } from "./tools/system.js";
@@ -34,7 +35,8 @@ export type PluginCategory =
   | "lifecycle"
   | "compose"
   | "system"
-  | "diagnostics";
+  | "diagnostics"
+  | "prompts";
 
 /** A self-contained capability group that can be toggled on or off. */
 export interface ToolPlugin {
@@ -79,6 +81,18 @@ export const BUILTIN_PLUGINS: readonly ToolPlugin[] = Object.freeze([
     mutating: false,
     requiresExec: false,
     register: registerContainerTools,
+  },
+  {
+    name: "prompts",
+    title: "Guided workflows",
+    description:
+      "MCP prompts (debug a container, audit the host, review a Compose file, " +
+      "free up disk) and resources (host overview, server capabilities), so " +
+      "clients can offer ready-made workflows instead of waiting to be asked.",
+    category: "prompts",
+    mutating: false,
+    requiresExec: false,
+    register: registerPrompts,
   },
   {
     name: "diagnostics",
