@@ -21,6 +21,7 @@ import type { ToolContext } from "./tools/context.js";
 import { registerAboutTool } from "./tools/about.js";
 import { registerContainerTools } from "./tools/containers.js";
 import { registerLogTools } from "./tools/logs.js";
+import { registerDiagnosticsTools } from "./tools/diagnostics.js";
 import { registerLifecycleTools } from "./tools/lifecycle.js";
 import { registerImageTools } from "./tools/images.js";
 import { registerSystemTools } from "./tools/system.js";
@@ -32,7 +33,8 @@ export type PluginCategory =
   | "insight"
   | "lifecycle"
   | "compose"
-  | "system";
+  | "system"
+  | "diagnostics";
 
 /** A self-contained capability group that can be toggled on or off. */
 export interface ToolPlugin {
@@ -62,7 +64,7 @@ export const BUILTIN_PLUGINS: readonly ToolPlugin[] = Object.freeze([
   {
     name: "about",
     title: "Identity & credits",
-    description: "SoyRage Agency welcome banner, credits and license.",
+    description: "Welcome banner, version and credits.",
     category: "identity",
     mutating: false,
     requiresExec: false,
@@ -77,6 +79,17 @@ export const BUILTIN_PLUGINS: readonly ToolPlugin[] = Object.freeze([
     mutating: false,
     requiresExec: false,
     register: registerContainerTools,
+  },
+  {
+    name: "diagnostics",
+    title: "Diagnostics",
+    description:
+      "Scored host health check, crash-loop detection with log tails, and a " +
+      "breakdown of reclaimable disk. Read-only: reports, never prunes.",
+    category: "diagnostics",
+    mutating: false,
+    requiresExec: false,
+    register: registerDiagnosticsTools,
   },
   {
     name: "logs",
