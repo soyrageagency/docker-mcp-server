@@ -204,13 +204,21 @@ async function main() {
   const notif = { jsonrpc: "2.0", method: "notifications/initialized" };
   const listReq = { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} };
   const aboutReq = { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "about", arguments: {} } };
+  const promptsReq = { jsonrpc: "2.0", id: 4, method: "prompts/list", params: {} };
+  const resourcesReq = { jsonrpc: "2.0", id: 5, method: "resources/list", params: {} };
 
-  const full = await mcp({}, [init, notif, listReq, aboutReq]);
+  const full = await mcp({}, [init, notif, listReq, aboutReq, promptsReq, resourcesReq]);
   const initRes = full.find((m) => m.id === 1);
   ok("MCP initialize returns server instructions", initRes?.result?.instructions?.includes("Docker MCP Server"));
   const tools = full.find((m) => m.id === 2)?.result?.tools?.map((t) => t.name) || [];
-  eq("MCP full tool count = 21", tools.length, 21);
+  eq("MCP full tool count = 24", tools.length, 24);
   ok("MCP has lifecycle tools", tools.includes("start_container") && tools.includes("deploy_stack"));
+  ok("MCP has diagnostics", tools.includes("host_health") && tools.includes("find_restart_loops") && tools.includes("find_unused_resources"));
+
+  const prompts = full.find((m) => m.id === 4)?.result?.prompts?.map((p) => p.name) || [];
+  ok("MCP exposes guided prompts", prompts.includes("debug-container") && prompts.includes("audit-host"));
+  const resources = full.find((m) => m.id === 5)?.result?.resources?.map((r) => r.uri) || [];
+  ok("MCP exposes resources", resources.includes("docker://host/overview") && resources.includes("docker://server/capabilities"));
   ok("MCP exec hidden by default", !tools.includes("exec_in_container"));
   const about = full.find((m) => m.id === 3)?.result?.content?.[0]?.text || "";
   ok("about tool shows PayPal", about.includes("paypalme/soyrageagency"));
